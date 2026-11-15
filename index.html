@@ -70,8 +70,12 @@ header h1 small{display:block;font-size:12px;font-weight:500;color:var(--mute)}
 #selRow{grid-column:1/3;display:flex}
 #selBtn{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:6px 14px;min-height:40px;font:700 15px Heebo;cursor:pointer}
 #selBtn i{width:12px;height:12px;border-radius:50%}
-#lineBar{grid-column:1/3;display:flex;gap:8px;align-items:center;background:var(--bg);border-radius:12px;padding:6px 8px}
-#lineBar span{flex:1;font-weight:700;font-size:14px}
+#lineBar{grid-column:1/3;display:flex;flex-direction:column;gap:6px;background:var(--bg);border-radius:12px;padding:6px 8px}
+#lineBar .lbb{display:flex;gap:8px;align-items:center}#lineBar .lbb span{flex:1;font-weight:700;font-size:14px}
+#olines{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -8px;padding:0 8px}#olines::-webkit-scrollbar{display:none}
+#olines button{flex:none;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;border-radius:999px;border:2px solid var(--line);background:var(--panel);font:700 14px Heebo;cursor:pointer;white-space:nowrap}
+#olines button i{width:10px;height:10px;border-radius:50%}
+#olines button.on{color:#fff}#olines .add{border-style:dashed;color:var(--ink)}
 #lineBar button{min-height:40px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);font:700 14px Heebo;cursor:pointer}
 #lineBar .fin{background:var(--ink);color:#fff;border-color:var(--ink)}
 .kpd{font:800 42px Heebo;text-align:center;direction:ltr;padding:4px 0 10px}
@@ -215,7 +219,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
     <div id="card">
       <div id="modes"><button data-m="mh">שוחה</button><button data-m="el">אלמנט</button><button data-m="line">קו</button><button data-m="flow">זרימה</button></div>
       <div id="selRow" hidden><button id="selBtn"></button></div>
-      <div id="lineBar" hidden><span id="lbT"></span><button id="lbUndo">בטל נקודה</button><button class="fin" id="lbFin">סיים</button></div>
+      <div id="lineBar" hidden><div id="olines"></div><div class="lbb"><span id="lbT"></span><button id="lbUndo">בטל נקודה</button><button class="fin" id="lbFin">סיים קו</button></div></div>
       <div id="info"><div id="kind">מיקום חופשי</div><div id="title">—</div><div id="coord"></div></div>
       <button id="pick"><svg id="pickI" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span id="pickT">צלם</span></button>
       <div id="chips"></div>
@@ -330,7 +334,7 @@ $('#dwgIn').addEventListener('change',async e=>{const f=e.target.files[0];e.targ
   catch(err){console.error(err);st.textContent='שגיאה: '+(err.message||err)}});
 
 /* ---------- home ---------- */
-async function home(){if(activeLine)await finishLine();flowFrom=null;screen('home');stopGps();syncUi();const ps=(await all('projects')).sort((a,b)=>b.created-a.created);const recs=await all('records');
+async function home(){dropEmpty();flowFrom=null;screen('home');stopGps();syncUi();const ps=(await all('projects')).sort((a,b)=>b.created-a.created);const recs=await all('records');
   $('#plist').innerHTML=ps.map(p=>{const r=recs.filter(x=>x.pid===p.id);const n=r.reduce((s,x)=>s+(x.n||0),0);
     return`<div class="proj" data-id="${p.id}"><div><b>${esc(p.name)}</b><span>${r.length} שוחות תועדו · ${n} תמונות</span></div><button class="x" data-del="${p.id}">מחק</button></div>`}).join('')||'<p class="hint">אין עדיין פרויקטים.</p>';
   try{const e=await navigator.storage.estimate();$('#store').textContent=`נפח בשימוש בטלפון: ${(e.usage/1048576).toFixed(1)} MB`}catch(e){}}
@@ -362,7 +366,7 @@ function initMap(){map=new maplibregl.Map({container:'map',style:{version:8,sour
     map.addLayer({id:'lnv',type:'circle',source:'lnv',minzoom:18,paint:{'circle-radius':R(2,4.5),'circle-color':'#fff','circle-stroke-color':['get','c'],'circle-stroke-width':2}});
     map.addLayer({id:'flow',type:'line',source:'flow',paint:{'line-color':['get','c'],'line-width':R(2,4)}});
     map.addLayer({id:'flowArr',type:'symbol',source:'flow',layout:{'symbol-placement':'line-center','icon-image':['concat','arrow|',['get','c']],'icon-size':R(.8,1.4),'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-rotation-alignment':'map'}});
-    map.addLayer({id:'band',type:'line',source:'band',paint:{'line-color':['get','c'],'line-width':2.5,'line-dasharray':[2,2]}});
+    map.addLayer({id:'band',type:'line',source:'band',paint:{'line-color':['get','c'],'line-width':['case',['==',['get','a'],1],3,1.5],'line-opacity':['case',['==',['get','a'],1],1,.45],'line-dasharray':[2,2]}});
     map.addLayer({id:'el',type:'symbol',source:'el',layout:{'icon-image':['concat',['get','s'],'|',['get','c']],'icon-size':R(.45,.95),'icon-allow-overlap':true,'icon-ignore-placement':true}});
     map.addLayer({id:'rec',type:'circle',source:'rec',paint:{'circle-radius':R(5,12),'circle-color':['get','c'],'circle-stroke-color':'#fff','circle-stroke-width':R(1.5,3)}});
     map.addLayer({id:'acc',type:'fill',source:'acc',paint:{'fill-color':'rgba(29,111,214,.12)','fill-outline-color':'rgba(29,111,214,.5)'}});
@@ -370,7 +374,7 @@ function initMap(){map=new maplibregl.Map({container:'map',style:{version:8,sour
     res()}));
   map.on('move',update);map.on('resize',labels);
   map.on('dragstart',()=>{if(follow){follow=false;gpsBtn()}})}
-async function openProject(id){if(activeLine)await finishLine();flowFrom=null;const p=await get('projects',id);if(!p)return home();P=p;LS.set('last',p.id);
+async function openProject(id){activeLine=null;flowFrom=null;const p=await get('projects',id);if(!p)return home();P=p;LS.set('last',p.id);
   PT=p.pts.map((x,i)=>({...x,id:i}));A=affine(p.ref);$('#pname').firstChild.textContent=p.name;screen('mapv');
   if(!map)initMap();map.resize();await mapReady;
   map.getSource('ln').setData(fc(p.lines.map(l=>({type:'Feature',properties:{l:l.l},geometry:{type:'LineString',coordinates:l.c}}))));
@@ -393,6 +397,12 @@ const TYPEN={mh:'שוחה',el:'אלמנט',line:'קו',flow:'זרימה'};
 let mode=LS.get('mode')||'mh',activeLine=null,flowFrom=null;
 const sel={el:{inf:LS.get('selElInf')||'elec',el:LS.get('selEl')||'ארון'},line:{inf:LS.get('selLnInf')||'elec',el:LS.get('selLnEl')||'קו'},flow:{inf:LS.get('selFlInf')||'sewer'}};
 if(!ptEls(sel.el.inf).includes(sel.el.el)){sel.el.inf='elec';sel.el.el='ארון'}if(!lnEls(sel.line.inf).includes(sel.line.el)){sel.line.inf='elec';sel.line.el='קו'}if(!['sewer','drain'].includes(sel.flow.inf))sel.flow.inf='sewer';
+let pendingNew=false;
+const openLines=()=>[...recs.values()].filter(r=>typ(r)==='line'&&r.open).concat(activeLine&&!recs.has(activeLine.id)?[activeLine]:[]).sort((a,b)=>a.created-b.created);
+function setActive(r){activeLine=r||null;LS.set('activeLine',r?r.id:'')}
+function startNewLine(){const k=sel.line.inf,n=[...recs.values()].filter(r=>typ(r)==='line'&&r.infra===k&&r.el===sel.line.el).length+1;
+  dropEmpty();setActive({id:uid(),pid:P.id,type:'line',el:sel.line.el,infra:k,open:true,name:`${sel.line.el} ${IC[k][1]} ${n}`,pts:[],xy:null,ll:null,n:0,created:Date.now()});update()}
+function dropEmpty(){if(activeLine&&!activeLine.pts.length&&!recs.has(activeLine.id))activeLine=null}
 const nextSeq=()=>Math.max(0,...[...recs.values()].map(r=>r.seq||0))+1;
 const colOf=r=>r.infra&&IC[r.infra]?IC[r.infra][2]:'#16191c';
 function makeIcon(id){const[s,c]=id.split('|'),S=40,cv=document.createElement('canvas');cv.width=cv.height=S;const g=cv.getContext('2d');g.lineJoin='round';g.lineWidth=4;g.strokeStyle='#fff';g.fillStyle=c;
@@ -405,7 +415,7 @@ function makeIcon(id){const[s,c]=id.split('|'),S=40,cv=document.createElement('c
   else if(s==='ring'){g.beginPath();g.arc(20,20,12,0,7);hollow()}
   else{g.beginPath();g.arc(20,20,11,0,7);solid()}
   return g.getImageData(0,0,S,S)}
-async function loadRecs(){recs=new Map((await byIdx('records','pid',P.id)).map(r=>[r.id,r]));drawRecs()}
+async function loadRecs(){recs=new Map((await byIdx('records','pid',P.id)).map(r=>[r.id,r]));const a=recs.get(LS.get('activeLine'));const ol=openLines();setActive(a&&a.open?a:ol[ol.length-1]);drawRecs()}
 function drawRecs(){recByPt=new Map();for(const r of recs.values())if(r.pt!=null&&(typ(r)==='mh'||typ(r)==='el'))recByPt.set(r.pt,r);
   if(map&&map.getSource('rec')){const R=[...recs.values()],F=(g,p)=>({type:'Feature',properties:p,geometry:g});
     map.getSource('rec').setData(fc(R.filter(r=>typ(r)==='mh').map(r=>F({type:'Point',coordinates:r.ll},{c:colOf(r)}))));
@@ -435,7 +445,8 @@ function targets(){const t=[],R=[...recs.values()];
   const mhPts=()=>{for(const p of PT)if((p.k==='mh'&&vis.mh)||(p.k==='mhtxt'&&vis.mhtxt))t.push({t:'pt',p,ll:p.ll})};
   const spPts=onlyDone=>{if(vis.sp)for(const p of PT)if((p.k==='sign'||p.k==='pole')&&(!onlyDone||recByPt.has(p.id)))t.push({t:'pt',p,ll:p.ll})};
   const recsOf=ty=>{if(vis.rec)for(const r of R)if(typ(r)===ty&&r.pt==null)t.push({t:'rec',r,ll:r.ll})};
-  const lvs=()=>{if(vis.rec)for(const r of R)if(typ(r)==='line')r.pts.forEach((q,i)=>{if(!(r===activeLine&&i===r.pts.length-1))t.push({t:'lv',r,i,ll:q.ll})})};
+  // in line mode only vertices of the same infrastructure (a branch), so parallel lines don't grab each other
+  const lvs=()=>{if(vis.rec)for(const r of R)if(typ(r)==='line'&&(mode!=='line'||!activeLine||r.infra===activeLine.infra))r.pts.forEach((q,i)=>{if(!(r===activeLine&&i===r.pts.length-1))t.push({t:'lv',r,i,ll:q.ll})})};
   if(mode==='mh'){mhPts();recsOf('mh');recsOf('el');spPts(true);lvs()}else if(mode==='el'){mhPts();recsOf('mh');spPts();recsOf('el')}
   else if(mode==='line'){mhPts();recsOf('mh');recsOf('el');spPts();lvs()}else{mhPts();recsOf('mh')}return t}
 const tName=o=>o.t==='rec'?o.r.name:o.t==='lv'?`${o.r.name} · נק׳ ${o.i+1}`:o.p.k==='mh'?'ת.ב. '+o.p.name:o.p.k==='pole'?('עמוד '+(o.p.name||'')).trim():o.p.k==='sign'?('תמרור '+(o.p.name||'')).trim():o.p.name;
@@ -446,8 +457,8 @@ function update(){if(!P)return;const c=map.project(map.getCenter()),m=mpp();
   cand=targets().map(o=>{const s=map.project(o.ll),d=Math.hypot(s.x-c.x,s.y-c.y);return{...o,d,m:d*m}}).filter(o=>vis.snap&&o.d<=SNAP_PX&&o.m<=SNAP_M).sort((a,b)=>a.d-b.d);
   if(cur&&!cand.some(o=>o.ll===cur.ll&&o.t===cur.t))cur=null;if(!cur&&cand.length)cur=cand[0];
   const band=map.getSource('band'),c0=map.getCenter(),here=cur?cur.ll:[c0.lng,c0.lat];
-  if(band){const from=activeLine&&activeLine.pts.length?{ll:activeLine.pts[activeLine.pts.length-1].ll,c:colOf(activeLine)}:flowFrom?{ll:flowFrom.ll,c:IC[sel.flow.inf][2]}:null;
-    band.setData(fc(from?[{type:'Feature',properties:{c:from.c},geometry:{type:'LineString',coordinates:[from.ll,here]}}]:[]))}
+  if(band){const fr=[];if(mode==='line')for(const L of openLines())if(L.pts.length)fr.push({ll:L.pts[L.pts.length-1].ll,c:colOf(L),a:L===activeLine?1:0});if(mode==='flow'&&flowFrom)fr.push({ll:flowFrom.ll,c:IC[sel.flow.inf][2],a:1});
+    band.setData(fc(fr.map(f=>({type:'Feature',properties:{c:f.c,a:f.a},geometry:{type:'LineString',coordinates:[f.ll,here]}}))))}
   show();labels()}
 function show(){const rc=recOf(cur);let kind,title,col='#16191c';
   if(!cur){kind=vis.snap?'מיקום חופשי':'מיקום חופשי · הצמדה כבויה';title=mode==='flow'?'כוון את הכוונת לשוחה':'אין שוחה מדודה כאן'}
@@ -457,10 +468,14 @@ function show(){const rc=recOf(cur);let kind,title,col='#16191c';
   if(rc&&cur.t!=='lv'){kind='✓ תועד'+(typ(rc)==='mh'?' · '+(rc.n||0)+' תמונות':typ(rc)==='el'?' · '+rc.el:'')+(rc.infra?' · '+IC[rc.infra][1]:'');col=colOf(rc)}
   $('#kind').textContent=kind;$('#kind').style.color=col;$('#title').textContent=title;$('#cross').classList.toggle('snap',!!cur);$('#cg').setAttribute('stroke',cur?col:'#16191c');
   $('#coord').textContent=fmt(cur?tXY(cur):A(map.getCenter()));
-  let act;if(mode==='mh')act=rc?'פתח':'צלם';else if(mode==='el')act=rc&&typ(rc)==='el'&&cur.t!=='lv'?'פתח':'הוסף '+sel.el.el;else if(mode==='line')act=activeLine?'נקודה':'התחל קו';else act=flowFrom?'חבר לכאן':'שוחת מוצא';
+  let act;if(mode==='mh')act=rc?'פתח':'צלם';else if(mode==='el')act=rc&&typ(rc)==='el'&&cur.t!=='lv'?'פתח':'הוסף '+sel.el.el;else if(mode==='line')act=activeLine?'נקודה':'קו חדש';else act=flowFrom?'חבר לכאן':'שוחת מוצא';
   $('#pickT').textContent=act;$('#pickI').style.display=mode==='mh'?'':'none';$('#pick').style.background=mode==='mh'&&rc?col:'';
-  const lb=$('#lineBar');if(mode==='line'&&activeLine){lb.hidden=false;$('#lbT').textContent=`${activeLine.name} · ${activeLine.pts.length} נק׳`;$('#lbUndo').hidden=false}
-  else if(mode==='flow'&&flowFrom){lb.hidden=false;$('#lbT').textContent='מ: '+flowFrom.name;$('#lbUndo').hidden=true}else lb.hidden=true;
+  const lb=$('#lineBar');
+  if(mode==='line'){lb.hidden=false;$('#olines').hidden=false;const ol=openLines();
+    $('#olines').innerHTML=ol.map(L=>{const on=L===activeLine,[, ,c,tx]=IC[L.infra];return`<button data-id="${L.id}" class="${on?'on':''}" style="${on?`background:${c};border-color:${c};color:${tx||'#fff'}`:`border-color:${c}`}"><i style="background:${on?(tx||'#fff'):c}"></i>${esc(L.name.replace(/^קו /,''))} · ${L.pts.length}</button>`}).join('')+'<button class="add" id="olAdd">+ קו חדש</button>';
+    $('#olines').querySelector('.on')?.scrollIntoView({inline:'nearest',block:'nearest'});
+    $('#lbT').textContent=activeLine?`פעיל: ${activeLine.name}`:'אין קו פעיל';$('#lbUndo').hidden=!activeLine||!activeLine.pts.length;$('#lbFin').hidden=!activeLine;$('#lbFin').textContent='סיים קו'}
+  else if(mode==='flow'&&flowFrom){lb.hidden=false;$('#olines').hidden=true;$('#lbT').textContent='מ: '+flowFrom.name;$('#lbUndo').hidden=true;$('#lbFin').hidden=false;$('#lbFin').textContent='סיים'}else lb.hidden=true;
   $('#chips').innerHTML=cand.length>1?cand.slice(0,5).map((o,i)=>`<button data-i="${i}" class="${cur&&o.ll===cur.ll&&o.t===cur.t?'cur':''}">${esc(tName(o))} · ${o.m.toFixed(1)} מ׳</button>`).join(''):''}
 $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(b){cur=cand[+b.dataset.i];show()}});
 $('#pick').addEventListener('click',async()=>{const rc=recOf(cur);
@@ -473,11 +488,10 @@ $('#pick').addEventListener('click',async()=>{const rc=recOf(cur);
     const n=[...recs.values()].filter(r=>typ(r)==='el'&&r.el===e&&r.infra===k).length+1;
     const r={id:uid(),pid:P.id,type:'el',el:e,infra:k,seq:nextSeq(),pt:cur&&cur.t==='pt'&&(cur.p.k==='pole'||cur.p.k==='sign')?cur.p.id:null,on:cur?tName(cur):null,name:`${e} ${IC[k][1]} ${n}`,xy,ll,n:0,created:Date.now()};
     await saveRec(r);toast('נוסף: '+r.name);return}
-  if(mode==='line'){if(!activeLine){const k=sel.line.inf,n=[...recs.values()].filter(r=>typ(r)==='line'&&r.infra===k&&r.el===sel.line.el).length+1;
-      activeLine={id:uid(),pid:P.id,type:'line',el:sel.line.el,infra:k,seq:nextSeq(),name:`${sel.line.el} ${IC[k][1]} ${n}`,pts:[],xy,ll,n:0,created:Date.now()}}
-    const L=activeLine,last=L.pts[L.pts.length-1];if(last&&last.ll[0]===ll[0]&&last.ll[1]===ll[1])return toast('הזז את הכוונת לנקודה הבאה');
+  if(mode==='line'){if(!activeLine){pendingNew=true;return openPicker()}
+    const L=activeLine;if(!L.seq)L.seq=nextSeq();const last=L.pts[L.pts.length-1];if(last&&last.ll[0]===ll[0]&&last.ll[1]===ll[1])return toast('הזז את הכוונת לנקודה הבאה');
     const v={xy,ll,d:null,on:cur?tName(cur):null};if(cur&&cur.t==='lv'&&cur.r!==L)v.ref={line:cur.r.id,i:cur.i};else if(cur&&cur.t==='rec')v.ref={rec:cur.r.id};else if(cur&&cur.t==='pt')v.ref={pt:cur.p.id};
-    L.pts.push(v);if(L.pts.length===1){L.xy=xy;L.ll=ll}await saveRec(L);askDepth(L,L.pts.length-1);return}
+    L.pts.push(v);if(L.pts.length===1){L.xy=xy;L.ll=ll}L.open=true;await saveRec(L);askDepth(L,L.pts.length-1);return}
   if(!isMh(cur))return toast('כוון את הכוונת לשוחה');
   const end={name:tName(cur),xy,ll,ref:cur.t==='pt'?{pt:cur.p.id}:{rec:cur.r.id}};
   if(!flowFrom){flowFrom=end;return update()}
@@ -485,27 +499,31 @@ $('#pick').addEventListener('click',async()=>{const rc=recOf(cur);
   const k=sel.flow.inf,r={id:uid(),pid:P.id,type:'flow',infra:k,seq:nextSeq(),name:`זרימת ${IC[k][1]}: ${flowFrom.name} אל ${end.name}`,a:flowFrom,b:end,xy:flowFrom.xy,ll:flowFrom.ll,n:0,created:Date.now()};
   await saveRec(r);toast('חובר: '+flowFrom.name+' ← '+end.name);flowFrom=end;update()});
 // modes and selection
-async function finishLine(){const r=activeLine;activeLine=null;if(!r)return;
-  if(r.pts.length<2){if(recs.has(r.id)){await del('records',r.id);recs.delete(r.id);markDirty(r.pid);drawRecs()}if(r.pts.length)toast('קו צריך לפחות 2 נקודות – בוטל')}else toast(`נשמר: ${r.name} · ${r.pts.length} נקודות`)}
-async function setMode(m){if(activeLine&&m!=='line')await finishLine();flowFrom=null;mode=m;LS.set('mode',m);modeUi();cur=null;if(map)update()}
+async function finishLine(){const r=activeLine;if(!r)return;
+  if(r.pts.length<2){if(recs.has(r.id)){await del('records',r.id);recs.delete(r.id);markDirty(r.pid)}if(r.pts.length)toast('קו צריך לפחות 2 נקודות – בוטל')}else{r.open=false;await saveRec(r);toast(`נשמר: ${r.name} · ${r.pts.length} נקודות`)}
+  activeLine=null;const ol=openLines();setActive(ol[ol.length-1]);drawRecs()}
+async function setMode(m){dropEmpty();flowFrom=null;mode=m;LS.set('mode',m);modeUi();cur=null;if(map)update()}
 function modeUi(){document.querySelectorAll('#modes button').forEach(x=>x.classList.toggle('on',x.dataset.m===mode));selUi()}
 $('#modes').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setMode(b.dataset.m)});
 $('#lbFin').onclick=async()=>{if(mode==='line')await finishLine();else flowFrom=null;update()};
-$('#lbUndo').onclick=async()=>{const L=activeLine;if(!L)return;L.pts.pop();if(!L.pts.length){activeLine=null;if(recs.has(L.id)){await del('records',L.id);recs.delete(L.id);markDirty(L.pid);drawRecs()}}else{L.xy=L.pts[0].xy;L.ll=L.pts[0].ll;await saveRec(L)}update()};
+$('#lbUndo').onclick=async()=>{const L=activeLine;if(!L||!L.pts.length)return;L.pts.pop();if(!L.pts.length){if(recs.has(L.id)){await del('records',L.id);recs.delete(L.id);markDirty(L.pid);drawRecs()}}else{L.xy=L.pts[0].xy;L.ll=L.pts[0].ll;await saveRec(L)}update()};
+$('#olines').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.id==='olAdd'){pendingNew=true;return openPicker()}
+  const L=openLines().find(x=>x.id===b.dataset.id);if(L&&L!==activeLine){dropEmpty();setActive(L);update()}});
 function saveSel(){LS.set('selElInf',sel.el.inf);LS.set('selEl',sel.el.el);LS.set('selLnInf',sel.line.inf);LS.set('selLnEl',sel.line.el);LS.set('selFlInf',sel.flow.inf)}
-function selUi(){$('#selRow').hidden=mode==='mh';if(mode==='mh')return;const s=sel[mode],c=IC[s.inf];$('#selBtn').innerHTML=`<i style="background:${c[2]}"></i>${c[1]}${mode==='flow'?'':' · '+s.el} <span style="color:var(--mute)">▾</span>`}
+function selUi(){$('#selRow').hidden=mode==='mh'||mode==='line';if(mode==='mh'||mode==='line')return;const s=sel[mode],c=IC[s.inf];$('#selBtn').innerHTML=`<i style="background:${c[2]}"></i>${c[1]}${mode==='flow'?'':' · '+s.el} <span style="color:var(--mute)">▾</span>`}
 const chip=(k,on,label)=>{const[,l,c,tx]=IC[k];return`<button data-k="${k}" class="${on?'on':''}" style="${on?`background:${c};border-color:${c};color:${tx||'#fff'}`:''}"><i style="background:${c}"></i>${label||l}</button>`};
 function openPicker(){const m=mode,s=sel[m],fn=m==='el'?ptEls:lnEls;const infs=m==='flow'?['sewer','drain']:INFRA.map(i=>i[0]).filter(k=>fn(k).length);
-  $('#psT').textContent=m==='flow'?'סוג זרימה':m==='el'?'תשתית ואלמנט':'תשתית וסוג קו';$('#psInf').innerHTML=infs.map(k=>chip(k,s.inf===k)).join('');
+  $('#psT').textContent=m==='flow'?'סוג זרימה':m==='el'?'תשתית ואלמנט':'קו חדש – תשתית וסוג';$('#psInf').innerHTML=infs.map(k=>chip(k,s.inf===k)).join('');
   $('#psElWrap').hidden=m==='flow';$('#psEl').innerHTML=m==='flow'?'':fn(s.inf).map(e=>`<button data-e="${e}" class="${s.el===e?'on':''}" style="${s.el===e?'background:var(--ink);border-color:var(--ink);color:#fff':''}">${e}</button>`).join('');sheet('pickS',true)}
-$('#selBtn').onclick=openPicker;
+$('#selBtn').onclick=()=>{pendingNew=false;openPicker()};
+function picked(){sheet('pickS',false);selUi();if(mode==='line'&&pendingNew){pendingNew=false;startNewLine()}else update()}
 $('#psInf').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const s=sel[mode];s.inf=b.dataset.k;
-  if(mode!=='flow'){const els=(mode==='el'?ptEls:lnEls)(s.inf);if(!els.includes(s.el))s.el=els[0];saveSel();if(els.length>1)return openPicker()}saveSel();sheet('pickS',false);selUi();update()});
-$('#psEl').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;sel[mode].el=b.dataset.e;saveSel();sheet('pickS',false);selUi();update()});
+  if(mode!=='flow'){const els=(mode==='el'?ptEls:lnEls)(s.inf);if(!els.includes(s.el))s.el=els[0];saveSel();if(els.length>1)return openPicker()}saveSel();picked()});
+$('#psEl').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;sel[mode].el=b.dataset.e;saveSel();picked()});
 // depth keypad
 let kpLine=null,kpI=0,kpV='';
 const kpShow=()=>$('#kpD').textContent=kpV?kpV+' מ׳':'—';
-function askDepth(r,i){kpLine=r;kpI=i;kpV=r.pts[i].d!=null?String(r.pts[i].d):'';$('#kpT').textContent=`עומק · ${r.name} · נק׳ ${i+1}`;kpShow();sheet('kpS',true)}
+function askDepth(r,i){kpLine=r;kpI=i;kpV=r.pts[i].d!=null?String(r.pts[i].d):'';$('#kpT').innerHTML=`<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${colOf(r)};margin-inline-end:6px"></span>עומק · ${esc(r.name)} · נק׳ ${i+1}`;kpShow();sheet('kpS',true)}
 $('#kpKeys').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const k=b.dataset.k;
   if(k==='del')kpV=kpV.slice(0,-1);else if(k==='.'){if(!kpV.includes('.'))kpV=(kpV||'0')+'.'}else if(kpV.length<5)kpV=(kpV==='0'?'':kpV)+k;kpShow()});
 $('#kpOk').onclick=async()=>{const v=parseFloat(kpV);kpLine.pts[kpI].d=isNaN(v)?null:+v.toFixed(2);sheet('kpS',false);await saveRec(kpLine);if(openR===kpLine&&$('#recS').classList.contains('open'))openRec(kpLine)};
@@ -593,11 +611,11 @@ async function openRec(r){openR=r;urls.forEach(URL.revokeObjectURL);urls=[];$('#
   $('#rDel').classList.remove('arm');$('#rDel').textContent='מחק '+TYPEN[t];sheet('listS',false);sheet('recS',true)}
 $('#rExtra').addEventListener('click',async e=>{const d=e.target.closest('[data-dep]'),x=e.target.closest('[data-x]');if(d)return askDepth(openR,+d.dataset.dep);
   if(x){if(openR.pts.length<=2)return toast('בקו חייבות להיות 2 נקודות – אפשר למחוק את כל הקו');openR.pts.splice(+x.dataset.x,1);openR.xy=openR.pts[0].xy;openR.ll=openR.pts[0].ll;await saveRec(openR);openRec(openR)}});
-$('#rCont').onclick=async()=>{const r=openR;sheet('recS',false);if(mode!=='line')await setMode('line');else if(activeLine&&activeLine!==r)await finishLine();activeLine=r;map.flyTo({center:r.pts[r.pts.length-1].ll,zoom:Math.max(map.getZoom(),20)});update();toast('המשך את הקו מהנקודה האחרונה')};
+$('#rCont').onclick=async()=>{const r=openR;sheet('recS',false);if(mode!=='line')await setMode('line');dropEmpty();r.open=true;await saveRec(r);setActive(r);map.flyTo({center:r.pts[r.pts.length-1].ll,zoom:Math.max(map.getZoom(),20)});update();toast('המשך את הקו מהנקודה האחרונה')};
 $('#rRev').onclick=async()=>{const r=openR;[r.a,r.b]=[r.b,r.a];r.xy=r.a.xy;r.ll=r.a.ll;r.name=`זרימת ${IC[r.infra][1]}: ${r.a.name} אל ${r.b.name}`;await saveRec(r);openRec(r)};
 $('#rInf').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;openR.infra=openR.infra===b.dataset.k?null:b.dataset.k;if(openR.infra)LS.set('lastInf',openR.infra);$('#rInf').innerHTML=infBtns(openR.infra);await saveRec(openR)});
 $('#rMore').onclick=()=>{requestCompass();sheet('recS',false);openCam(openR)};
-$('#rDel').onclick=()=>arm($('#rDel'),'לחץ שוב למחיקה',async()=>{for(const p of await byIdx('photos','rid',openR.id)){dbxDel(p.path);await del('queue',p.id);await del('photos',p.id)}await del('records',openR.id);markDirty(openR.pid);recs.delete(openR.id);if(activeLine===openR)activeLine=null;sheet('recS',false);drawRecs();cur=null;update();toast('נמחק')});
+$('#rDel').onclick=()=>arm($('#rDel'),'לחץ שוב למחיקה',async()=>{for(const p of await byIdx('photos','rid',openR.id)){dbxDel(p.path);await del('queue',p.id);await del('photos',p.id)}await del('records',openR.id);markDirty(openR.pid);recs.delete(openR.id);if(activeLine===openR){const ol=openLines();setActive(ol[ol.length-1])}sheet('recS',false);drawRecs();cur=null;update();toast('נמחק')});
 let vPh=null,vUrl;
 $('#rGrid').addEventListener('click',async e=>{const f=e.target.closest('figure');if(!f)return;vPh=await get('photos',f.dataset.id);if(vUrl)URL.revokeObjectURL(vUrl);vUrl=URL.createObjectURL(vPh.blob||vPh.thumb);$('#vImg').src=vUrl;
   if(!vPh.blob&&vPh.path){const want=vPh.id;dbxRpc('files/get_temporary_link',{path:vPh.path}).then(j=>{if(vPh&&vPh.id===want)$('#vImg').src=j.link}).catch(()=>toast('צריך אינטרנט כדי לראות את התמונה המלאה'))}
@@ -607,7 +625,7 @@ $('#vdel').onclick=()=>arm($('#vdel'),'בטוח?',async()=>{dbxDel(vPh.path);awa
 // list
 $('#bList').onclick=()=>{const rs=[...recs.values()].sort((a,b)=>(b.updated||0)-(a.updated||0));urls.forEach(URL.revokeObjectURL);urls=[];
   $('#lBody').innerHTML=rs.length?rs.map(r=>{const t=typ(r);let im=`<span class="ph" style="${t!=='mh'?`background:${colOf(r)};opacity:.85`:''}"></span>`;if(r.cover){const u=URL.createObjectURL(r.cover);urls.push(u);im=`<img src="${u}" alt="">`}
-    const info=t==='line'?`${r.pts.length} נק׳ · ${lineLen(r).toFixed(0)} מ׳`:t==='flow'?'כיוון זרימה':`${r.n||0} תמונות`;
+    const info=t==='line'?`${r.open?'פתוח · ':''}${r.pts.length} נק׳ · ${lineLen(r).toFixed(0)} מ׳`:t==='flow'?'כיוון זרימה':`${r.n||0} תמונות`;
     return`<div class="row" data-id="${r.id}">${im}<div><b>${esc(r.name)}</b><span>${TYPEN[t]}${r.infra&&t==='mh'?' · '+IC[r.infra][1]:''} · ${info} · ${new Date(r.updated||r.created).toLocaleTimeString('he-IL',{timeStyle:'short'})}</span></div></div>`}).join(''):'<div class="empty">עוד לא תועד כלום בפרויקט הזה.</div>';sheet('listS',true)};
 $('#lBody').addEventListener('click',e=>{const r=e.target.closest('.row');if(!r)return;const rc=recs.get(r.dataset.id);follow=false;gpsBtn();map.flyTo({center:rc.ll,zoom:21.5});openRec(rc)});
 
