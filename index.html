@@ -363,7 +363,8 @@ function initMap(){map=new maplibregl.Map({container:'map',style:{version:8,sour
     map.addLayer({id:'mh',type:'circle',source:'pt',filter:['==','k','mh'],paint:{'circle-radius':R(3.5,9),'circle-color':'#fff','circle-stroke-color':'#d1261b','circle-stroke-width':R(2,3.5)}});
     map.addLayer({id:'strip',type:'line',source:'lns',filter:['==','el','רצועה'],paint:{'line-color':['get','c'],'line-opacity':.25,'line-width':R(6,18)}});
     map.addLayer({id:'lns',type:'line',source:'lns',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['get','c'],'line-width':R(2,4.5)}});
-    map.addLayer({id:'lnv',type:'circle',source:'lnv',minzoom:18,paint:{'circle-radius':R(2,4.5),'circle-color':'#fff','circle-stroke-color':['get','c'],'circle-stroke-width':2}});
+    map.addLayer({id:'lnp',type:'circle',source:'lnv',filter:['==','s',1],paint:{'circle-radius':R(3.5,8),'circle-color':['get','c'],'circle-stroke-color':'#fff','circle-stroke-width':2}});
+    map.addLayer({id:'lnv',type:'circle',source:'lnv',minzoom:18,filter:['!=','s',1],paint:{'circle-radius':R(2,4.5),'circle-color':'#fff','circle-stroke-color':['get','c'],'circle-stroke-width':2}});
     map.addLayer({id:'flow',type:'line',source:'flow',paint:{'line-color':['get','c'],'line-width':R(2,4)}});
     map.addLayer({id:'flowArr',type:'symbol',source:'flow',layout:{'symbol-placement':'line-center','icon-image':['concat','arrow|',['get','c']],'icon-size':R(.8,1.4),'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-rotation-alignment':'map'}});
     map.addLayer({id:'band',type:'line',source:'band',paint:{'line-color':['get','c'],'line-width':['case',['==',['get','a'],1],3,1.5],'line-opacity':['case',['==',['get','a'],1],1,.45],'line-dasharray':[2,2]}});
@@ -415,13 +416,14 @@ function makeIcon(id){const[s,c]=id.split('|'),S=40,cv=document.createElement('c
   else if(s==='ring'){g.beginPath();g.arc(20,20,12,0,7);hollow()}
   else{g.beginPath();g.arc(20,20,11,0,7);solid()}
   return g.getImageData(0,0,S,S)}
-async function loadRecs(){recs=new Map((await byIdx('records','pid',P.id)).map(r=>[r.id,r]));const a=recs.get(LS.get('activeLine'));const ol=openLines();setActive(a&&a.open?a:ol[ol.length-1]);drawRecs()}
+async function loadRecs(){recs=new Map((await byIdx('records','pid',P.id)).map(r=>[r.id,r]));
+  let s=Math.max(0,...[...recs.values()].map(r=>r.seq||0));for(const r of [...recs.values()].sort((a,b)=>a.created-b.created)){let ch=false;if(/^ת\.ב\.\s*$/.test(r.name)){r.name='ת.ב. ללא מספר';ch=true}if(!r.seq){r.seq=++s;ch=true}if(ch)await put('records',r)}const a=recs.get(LS.get('activeLine'));const ol=openLines();setActive(a&&a.open?a:ol[ol.length-1]);drawRecs()}
 function drawRecs(){recByPt=new Map();for(const r of recs.values())if(r.pt!=null&&(typ(r)==='mh'||typ(r)==='el'))recByPt.set(r.pt,r);
   if(map&&map.getSource('rec')){const R=[...recs.values()],F=(g,p)=>({type:'Feature',properties:p,geometry:g});
     map.getSource('rec').setData(fc(R.filter(r=>typ(r)==='mh').map(r=>F({type:'Point',coordinates:r.ll},{c:colOf(r)}))));
     map.getSource('el').setData(fc(R.filter(r=>typ(r)==='el').map(r=>F({type:'Point',coordinates:r.ll},{c:colOf(r),s:SHAPE[r.el]||'dot'}))));
     map.getSource('lns').setData(fc(R.filter(r=>typ(r)==='line'&&r.pts.length>1).map(r=>F({type:'LineString',coordinates:r.pts.map(p=>p.ll)},{c:colOf(r),el:r.el}))));
-    map.getSource('lnv').setData(fc(R.filter(r=>typ(r)==='line').flatMap(r=>r.pts.map(p=>F({type:'Point',coordinates:p.ll},{c:colOf(r)})))));
+    map.getSource('lnv').setData(fc(R.filter(r=>typ(r)==='line').flatMap(r=>r.pts.map(p=>F({type:'Point',coordinates:p.ll},{c:colOf(r),s:r.pts.length===1&&!r.open?1:0})))));
     map.getSource('flow').setData(fc(R.filter(r=>typ(r)==='flow').map(r=>F({type:'LineString',coordinates:[r.a.ll,r.b.ll]},{c:colOf(r)}))))}
   const c={mh:0,el:0,line:0,flow:0};for(const r of recs.values())c[typ(r)]++;const ph=[...recs.values()].reduce((s,r)=>s+(r.n||0),0);
   $('#cnt').hidden=!recs.size;$('#cnt').textContent=recs.size;
@@ -448,10 +450,11 @@ function targets(){const t=[],R=[...recs.values()];
   // in line mode only vertices of the same infrastructure (a branch), so parallel lines don't grab each other
   const lvs=()=>{if(vis.rec)for(const r of R)if(typ(r)==='line'&&(mode!=='line'||!activeLine||r.infra===activeLine.infra))r.pts.forEach((q,i)=>{if(!(r===activeLine&&i===r.pts.length-1))t.push({t:'lv',r,i,ll:q.ll})})};
   if(mode==='mh'){mhPts();recsOf('mh');recsOf('el');spPts(true);lvs()}else if(mode==='el'){mhPts();recsOf('mh');spPts();recsOf('el')}
-  else if(mode==='line'){mhPts();recsOf('mh');recsOf('el');spPts();lvs()}else{mhPts();recsOf('mh')}return t}
-const tName=o=>o.t==='rec'?o.r.name:o.t==='lv'?`${o.r.name} · נק׳ ${o.i+1}`:o.p.k==='mh'?'ת.ב. '+o.p.name:o.p.k==='pole'?('עמוד '+(o.p.name||'')).trim():o.p.k==='sign'?('תמרור '+(o.p.name||'')).trim():o.p.name;
+  else if(mode==='line'){mhPts();recsOf('mh');recsOf('el');spPts();lvs()}
+  else{mhPts();recsOf('mh');if(vis.rec){for(const r of R)if(typ(r)==='el'&&r.el==='קולטן')t.push({t:'rec',r,ll:r.ll});for(const r of R)if(typ(r)==='line'&&(r.infra==='sewer'||r.infra==='drain'))r.pts.forEach((q,i)=>t.push({t:'lv',r,i,ll:q.ll}))}}return t}
+const tName=o=>o.t==='rec'?o.r.name:o.t==='lv'?`${o.r.name} · נק׳ ${o.i+1}`:o.p.k==='mh'?(o.p.name?'ת.ב. '+o.p.name:'ת.ב. ללא מספר'):o.p.k==='pole'?('עמוד '+(o.p.name||'')).trim():o.p.k==='sign'?('תמרור '+(o.p.name||'')).trim():o.p.name;
 const tXY=o=>o.t==='rec'?o.r.xy:o.t==='lv'?o.r.pts[o.i].xy:[o.p.x,o.p.y];
-const isMh=o=>!!o&&((o.t==='pt'&&(o.p.k==='mh'||o.p.k==='mhtxt'))||(o.t==='rec'&&typ(o.r)==='mh'));
+const isMh=o=>!!o&&((o.t==='pt'&&(o.p.k==='mh'||o.p.k==='mhtxt'))||(o.t==='rec'&&(typ(o.r)==='mh'||(typ(o.r)==='el'&&o.r.el==='קולטן')))||(o.t==='lv'&&(o.r.infra==='sewer'||o.r.infra==='drain')));
 function recOf(o){return o?(o.t==='rec'||o.t==='lv'?o.r:recByPt.get(o.p.id)):null}
 function update(){if(!P)return;const c=map.project(map.getCenter()),m=mpp();
   cand=targets().map(o=>{const s=map.project(o.ll),d=Math.hypot(s.x-c.x,s.y-c.y);return{...o,d,m:d*m}}).filter(o=>vis.snap&&o.d<=SNAP_PX&&o.m<=SNAP_M).sort((a,b)=>a.d-b.d);
@@ -461,14 +464,14 @@ function update(){if(!P)return;const c=map.project(map.getCenter()),m=mpp();
     band.setData(fc(fr.map(f=>({type:'Feature',properties:{c:f.c,a:f.a},geometry:{type:'LineString',coordinates:[f.ll,here]}}))))}
   show();labels()}
 function show(){const rc=recOf(cur);let kind,title,col='#16191c';
-  if(!cur){kind=vis.snap?'מיקום חופשי':'מיקום חופשי · הצמדה כבויה';title=mode==='flow'?'כוון את הכוונת לשוחה':'אין שוחה מדודה כאן'}
+  if(!cur){kind=vis.snap?'מיקום חופשי':'מיקום חופשי · הצמדה כבויה';title=mode==='flow'?'כוון לשוחה, קולטן או נקודה בקו':'אין שוחה מדודה כאן'}
   else if(cur.t==='lv'){const d=cur.r.pts[cur.i].d;kind='נקודה בקו'+(d!=null?' · עומק '+Number(d).toFixed(2):'');title=tName(cur);col=colOf(cur.r)}
   else if(cur.t==='rec'){kind='תיעוד קיים';title=cur.r.name;col=colOf(cur.r)}
   else{const p=cur.p;kind=p.k==='mh'?'שוחה מדודה':p.k==='mhtxt'?'שוחה · כיתוב בלבד':'נקודה מדודה';title=tName(cur)+(p.h&&p.k==='mh'?' · מכסה '+p.h:'');col=p.k==='mh'?'#d1261b':p.k==='mhtxt'?'#ec7a00':'#5d6b78'}
   if(rc&&cur.t!=='lv'){kind='✓ תועד'+(typ(rc)==='mh'?' · '+(rc.n||0)+' תמונות':typ(rc)==='el'?' · '+rc.el:'')+(rc.infra?' · '+IC[rc.infra][1]:'');col=colOf(rc)}
   $('#kind').textContent=kind;$('#kind').style.color=col;$('#title').textContent=title;$('#cross').classList.toggle('snap',!!cur);$('#cg').setAttribute('stroke',cur?col:'#16191c');
   $('#coord').textContent=fmt(cur?tXY(cur):A(map.getCenter()));
-  let act;if(mode==='mh')act=rc?'פתח':'צלם';else if(mode==='el')act=rc&&typ(rc)==='el'&&cur.t!=='lv'?'פתח':'הוסף '+sel.el.el;else if(mode==='line')act=activeLine?'נקודה':'קו חדש';else act=flowFrom?'חבר לכאן':'שוחת מוצא';
+  let act;if(mode==='mh')act=rc?'פתח':'צלם';else if(mode==='el')act=rc&&typ(rc)==='el'&&cur.t!=='lv'?'פתח':'הוסף '+sel.el.el;else if(mode==='line')act=activeLine?'נקודה':'קו חדש';else act=flowFrom?'חבר לכאן':'נקודת מוצא';
   $('#pickT').textContent=act;$('#pickI').style.display=mode==='mh'?'':'none';$('#pick').style.background=mode==='mh'&&rc?col:'';
   const lb=$('#lineBar');
   if(mode==='line'){lb.hidden=false;$('#olines').hidden=false;const ol=openLines();
@@ -490,17 +493,25 @@ $('#pick').addEventListener('click',async()=>{const rc=recOf(cur);
     await saveRec(r);toast('נוסף: '+r.name);return}
   if(mode==='line'){if(!activeLine){pendingNew=true;return openPicker()}
     const L=activeLine;if(!L.seq)L.seq=nextSeq();const last=L.pts[L.pts.length-1];if(last&&last.ll[0]===ll[0]&&last.ll[1]===ll[1])return toast('הזז את הכוונת לנקודה הבאה');
+    if(cur&&cur.t==='lv'&&cur.r!==L&&cur.r.pts.length===1&&!cur.r.open)return absorb(L,cur.r);
     const v={xy,ll,d:null,on:cur?tName(cur):null};if(cur&&cur.t==='lv'&&cur.r!==L)v.ref={line:cur.r.id,i:cur.i};else if(cur&&cur.t==='rec')v.ref={rec:cur.r.id};else if(cur&&cur.t==='pt')v.ref={pt:cur.p.id};
     L.pts.push(v);if(L.pts.length===1){L.xy=xy;L.ll=ll}L.open=true;await saveRec(L);askDepth(L,L.pts.length-1);return}
-  if(!isMh(cur))return toast('כוון את הכוונת לשוחה');
-  const end={name:tName(cur),xy,ll,ref:cur.t==='pt'?{pt:cur.p.id}:{rec:cur.r.id}};
+  if(!isMh(cur))return toast('כוון לשוחה, לקולטן או לנקודה בקו ביוב/ניקוז');
+  const end={name:tName(cur),xy,ll,ref:cur.t==='pt'?{pt:cur.p.id}:cur.t==='lv'?{line:cur.r.id,i:cur.i}:{rec:cur.r.id}};
   if(!flowFrom){flowFrom=end;return update()}
   if(flowFrom.ll[0]===end.ll[0]&&flowFrom.ll[1]===end.ll[1])return toast('בחר שוחה אחרת');
   const k=sel.flow.inf,r={id:uid(),pid:P.id,type:'flow',infra:k,seq:nextSeq(),name:`זרימת ${IC[k][1]}: ${flowFrom.name} אל ${end.name}`,a:flowFrom,b:end,xy:flowFrom.xy,ll:flowFrom.ll,n:0,created:Date.now()};
   await saveRec(r);toast('חובר: '+flowFrom.name+' ← '+end.name);flowFrom=end;update()});
 // modes and selection
+// a stand-alone line point becomes part of the active line (keeps its depth); links to it move with it
+async function absorb(L,S){const v={...S.pts[0]};L.pts.push(v);const i=L.pts.length-1;if(i===0){L.xy=v.xy;L.ll=v.ll}L.open=true;await saveRec(L);
+  for(const r of recs.values()){let ch=false;if(typ(r)==='flow'){for(const e of[r.a,r.b])if(e.ref&&e.ref.line===S.id){e.ref={line:L.id,i};e.name=`${L.name} · נק׳ ${i+1}`;ch=true}if(ch)r.name=`זרימת ${IC[r.infra][1]}: ${r.a.name} אל ${r.b.name}`}
+    if(typ(r)==='line')for(const q of r.pts)if(q.ref&&q.ref.line===S.id){q.ref={line:L.id,i};ch=true}if(ch)await saveRec(r)}
+  await del('records',S.id);recs.delete(S.id);markDirty(S.pid);drawRecs();update();
+  if(v.d==null)askDepth(L,i);else toast(`חובר לנקודה הבודדת · עומק ${Number(v.d).toFixed(2)}`)}
 async function finishLine(){const r=activeLine;if(!r)return;
-  if(r.pts.length<2){if(recs.has(r.id)){await del('records',r.id);recs.delete(r.id);markDirty(r.pid)}if(r.pts.length)toast('קו צריך לפחות 2 נקודות – בוטל')}else{r.open=false;await saveRec(r);toast(`נשמר: ${r.name} · ${r.pts.length} נקודות`)}
+  if(!r.pts.length){if(recs.has(r.id)){await del('records',r.id);recs.delete(r.id);markDirty(r.pid)}}
+  else if(r.pts.length===1){r.open=false;if(!/^נקודת /.test(r.name))r.name='נקודת '+r.name;await saveRec(r);toast('נשמרה נקודה בודדת: '+r.name)}else{if(/^נקודת /.test(r.name))r.name=r.name.replace(/^נקודת /,'');r.open=false;await saveRec(r);toast(`נשמר: ${r.name} · ${r.pts.length} נקודות`)}
   activeLine=null;const ol=openLines();setActive(ol[ol.length-1]);drawRecs()}
 async function setMode(m){dropEmpty();flowFrom=null;mode=m;LS.set('mode',m);modeUi();cur=null;if(map)update()}
 function modeUi(){document.querySelectorAll('#modes button').forEach(x=>x.classList.toggle('on',x.dataset.m===mode));selUi()}
@@ -534,7 +545,7 @@ $('#sf').addEventListener('submit',e=>{e.preventDefault();const q=$('#q').value.
   const ll=p?p.ll:r?r.ll:null;if(!ll)return toast('לא נמצאה נקודה '+q);follow=false;gpsBtn();map.flyTo({center:ll,zoom:21.5})});
 $('#bFit').onclick=()=>{follow=false;gpsBtn();fit()};
 $('#bLay').onclick=()=>{$('#layers').classList.toggle('open');$('#bLay').classList.toggle('on')};
-$('#layers').addEventListener('change',e=>{const k=e.target.dataset.k;vis[k]=e.target.checked?1:0;if(k==='snap'){LS.set('nosnap',vis.snap?'':'1');cur=null;update();return}if(k!=='lbl')(k==='rec'?['rec','el','lns','strip','lnv','flow','flowArr']:[k]).forEach(id=>map.setLayoutProperty(id,'visibility',vis[k]?'visible':'none'));update()});
+$('#layers').addEventListener('change',e=>{const k=e.target.dataset.k;vis[k]=e.target.checked?1:0;if(k==='snap'){LS.set('nosnap',vis.snap?'':'1');cur=null;update();return}if(k!=='lbl')(k==='rec'?['rec','el','lns','strip','lnv','lnp','flow','flowArr']:[k]).forEach(id=>map.setLayoutProperty(id,'visibility',vis[k]?'visible':'none'));update()});
 $('#back').onclick=home;
 
 /* ---------- GPS ---------- */
@@ -573,8 +584,8 @@ async function openCam(r){camRec=r;screen('cam');$('#camName').textContent=r.nam
   catch(e){$('#camErrT').textContent='אין גישה למצלמה בתוך האפליקציה';$('#camErr').classList.add('on')}}
 function closeCam(){if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('#video').srcObject=null}
 $('#camInf').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;camRec.infra=camRec.infra===b.dataset.k?null:b.dataset.k;if(camRec.infra)LS.set('lastInf',camRec.infra);const sl=$('#camInf').scrollLeft;$('#camInf').innerHTML=infBtns(camRec.infra,camFirst);$('#camInf').scrollLeft=sl;if(recs.has(camRec.id))await saveRec(camRec)});
-async function encode(src,w,h){const s=Math.min(1,1400/Math.max(w,h)),c=document.createElement('canvas');c.width=Math.round(w*s);c.height=Math.round(h*s);c.getContext('2d').drawImage(src,0,0,c.width,c.height);
-  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.65));const t=document.createElement('canvas'),ts=240/Math.max(c.width,c.height);t.width=Math.round(c.width*ts);t.height=Math.round(c.height*ts);t.getContext('2d').drawImage(c,0,0,t.width,t.height);
+async function encode(src,w,h){const s=Math.min(1,1280/Math.max(w,h)),c=document.createElement('canvas');c.width=Math.round(w*s);c.height=Math.round(h*s);c.getContext('2d').drawImage(src,0,0,c.width,c.height);
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.6));const t=document.createElement('canvas'),ts=240/Math.max(c.width,c.height);t.width=Math.round(c.width*ts);t.height=Math.round(c.height*ts);t.getContext('2d').drawImage(c,0,0,t.width,t.height);
   return{blob,thumb:await new Promise(r=>t.toBlob(r,'image/jpeg',.7))}}
 async function saveRec(r){r.updated=Date.now();await put('records',r);recs.set(r.id,r);drawRecs();update();markDirty(r.pid)}
 // photo numbers per manhole never repeat (file names in Dropbox are built from them)
@@ -625,7 +636,7 @@ $('#vdel').onclick=()=>arm($('#vdel'),'בטוח?',async()=>{dbxDel(vPh.path);awa
 // list
 $('#bList').onclick=()=>{const rs=[...recs.values()].sort((a,b)=>(b.updated||0)-(a.updated||0));urls.forEach(URL.revokeObjectURL);urls=[];
   $('#lBody').innerHTML=rs.length?rs.map(r=>{const t=typ(r);let im=`<span class="ph" style="${t!=='mh'?`background:${colOf(r)};opacity:.85`:''}"></span>`;if(r.cover){const u=URL.createObjectURL(r.cover);urls.push(u);im=`<img src="${u}" alt="">`}
-    const info=t==='line'?`${r.open?'פתוח · ':''}${r.pts.length} נק׳ · ${lineLen(r).toFixed(0)} מ׳`:t==='flow'?'כיוון זרימה':`${r.n||0} תמונות`;
+    const info=t==='line'?(r.pts.length===1&&!r.open?`נקודה בודדת${r.pts[0].d!=null?' · עומק '+Number(r.pts[0].d).toFixed(2):''}`:`${r.open?'פתוח · ':''}${r.pts.length} נק׳ · ${lineLen(r).toFixed(0)} מ׳`):t==='flow'?'כיוון זרימה':`${r.n||0} תמונות`;
     return`<div class="row" data-id="${r.id}">${im}<div><b>${esc(r.name)}</b><span>${TYPEN[t]}${r.infra&&t==='mh'?' · '+IC[r.infra][1]:''} · ${info} · ${new Date(r.updated||r.created).toLocaleTimeString('he-IL',{timeStyle:'short'})}</span></div></div>`}).join(''):'<div class="empty">עוד לא תועד כלום בפרויקט הזה.</div>';sheet('listS',true)};
 $('#lBody').addEventListener('click',e=>{const r=e.target.closest('.row');if(!r)return;const rc=recs.get(r.dataset.id);follow=false;gpsBtn();map.flyTo({center:rc.ll,zoom:21.5});openRec(rc)});
 
@@ -667,13 +678,20 @@ async function writeJson(pid){const p=await get('projects',pid);if(!p)return;con
       photos:ph.map(x=>({file:x.path?x.path.split('/').pop():null,uploaded:!!x.up,heading_true_north:x.hd,north_up:!!x.north,taken:new Date(x.ts).toISOString()}))})}
   const j={app:'שוחות',version:1,project:{name:p.name,plan:p.plan||null,dwg:p.file||null},updated:new Date().toISOString(),records:out};
   await dbxPut(`${await projFolder(p)}/שוחות.json`,new Blob([JSON.stringify(j,null,1)],{type:'application/json'}))}
+const photoPath=(folder,r,ph)=>`${folder}/תמונות/${String(r.seq||0).padStart(3,'0')} ${safe(r.name)}_${ph.no||1}.jpg`;
+// one-time: give photos uploaded before numbering a unique name (only a rename, the file itself is untouched)
+async function renameOld(){const ps=await all('photos');let skip=false;for(const ph of ps){if(!ph.up||!ph.path)continue;const r=await get('records',ph.rid);if(!r)continue;if(!r.seq){skip=true;continue}const p=await get('projects',r.pid);if(!p)continue;
+    const to=photoPath(await projFolder(p),r,ph);if(ph.path.split('/').pop()===to.split('/').pop())continue;
+    try{const j=await dbxRpc('files/move_v2',{from_path:ph.path,to_path:to,autorename:true});ph.path=j.metadata.path_display;await put('photos',ph);dirty.add(p.id)}catch(e){if(e.status!==409)throw e}}
+  if(!skip)LS.set('renamed1','1')}
 async function sync(){if(syncing||!DBX.refresh())return syncUi();if(!navigator.onLine){syncErr='אין אינטרנט';return countPending()}syncing=true;syncErr='';syncUi();
   try{const ids=await req(os('queue').getAllKeys());pending=ids.length;
     for(const id of ids){const ph=await get('photos',id),r=ph&&await get('records',ph.rid),p=r&&await get('projects',r.pid);
       if(!ph||!ph.blob||!r||!p){await del('queue',id);pending--;continue}
       if(!ph.no){ph.no=await nextNo(r);await put('photos',ph)}
-      const res=await dbxUpload(`${await projFolder(p)}/תמונות/${safe(r.name)}_${ph.no}.jpg`,ph.blob);
+      const res=await dbxUpload(photoPath(await projFolder(p),r,ph),ph.blob);
       ph.path=res.path_display;ph.up=Date.now();delete ph.blob;await put('photos',ph);await del('queue',id);pending--;dirty.add(p.id);syncUi()}
+    if(!LS.get('renamed1'))await renameOld();
     for(const pid of[...dirty]){await writeJson(pid);dirty.delete(pid);LS.set('dbxDirty',JSON.stringify([...dirty]))}}
   catch(e){console.error(e);syncErr=e.message==='nolink'?'':navigator.onLine?'שגיאת סנכרון – ננסה שוב':'אין אינטרנט'}
   finally{syncing=false;LS.set('dbxDirty',JSON.stringify([...dirty]));await countPending()}}
