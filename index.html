@@ -27,7 +27,8 @@ header h1{font-size:17px;font-weight:800;margin:0;white-space:nowrap;overflow:hi
 header h1 small{display:block;font-size:12px;font-weight:500;color:var(--mute)}
 .ib{width:44px;height:44px;border:0;background:none;border-radius:12px;display:grid;place-items:center;cursor:pointer;flex:none}
 .ib svg{width:24px;height:24px}
-.search{flex:1;display:flex;max-width:220px;margin-inline-start:auto}
+.search{flex:0 0 100px;display:flex;margin-inline-start:auto}
+#mapv header h1{flex:1}
 .search input{width:100%;font:16px Heebo,sans-serif;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
 /* home */
 #home main{flex:1;overflow:auto;padding:16px 14px calc(var(--sb) + 20px)}
@@ -136,6 +137,8 @@ header h1 small{display:block;font-size:12px;font-weight:500;color:var(--mute)}
 .dbx .lk{background:none;border:0;color:var(--blue);font:500 14px Heebo;text-align:start;padding:4px 0;cursor:pointer}
 .dbx .arm{background:var(--red)!important;color:#fff!important}
 [hidden]{display:none!important}
+.brw{background:#fff4d6;color:#6b4a00;border-bottom:1px solid #f0d58a;padding:8px 12px;font-size:14px;font-weight:600;display:flex;gap:8px;align-items:center;z-index:5}
+.brw span{flex:1}.brw button{border:0;background:none;font-size:20px;color:#6b4a00;width:36px;height:36px;cursor:pointer}
 #toast{position:fixed;left:50%;top:calc(var(--st) + 70px);transform:translate(-50%,-10px);opacity:0;background:var(--ink);color:#fff;padding:9px 16px;border-radius:12px;font-size:15px;z-index:60;transition:.2s;pointer-events:none;white-space:nowrap}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
@@ -432,8 +435,8 @@ async function openCam(r){camRec=r;screen('cam');$('#camName').textContent=r.nam
   catch(e){$('#camErrT').textContent='אין גישה למצלמה בתוך האפליקציה';$('#camErr').classList.add('on')}}
 function closeCam(){if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('#video').srcObject=null}
 $('#camInf').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;camRec.infra=camRec.infra===b.dataset.k?null:b.dataset.k;if(camRec.infra)LS.set('lastInf',camRec.infra);const sl=$('#camInf').scrollLeft;$('#camInf').innerHTML=infBtns(camRec.infra,camFirst);$('#camInf').scrollLeft=sl;if(recs.has(camRec.id))await saveRec(camRec)});
-async function encode(src,w,h){const s=Math.min(1,1600/Math.max(w,h)),c=document.createElement('canvas');c.width=Math.round(w*s);c.height=Math.round(h*s);c.getContext('2d').drawImage(src,0,0,c.width,c.height);
-  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.78));const t=document.createElement('canvas'),ts=240/Math.max(c.width,c.height);t.width=Math.round(c.width*ts);t.height=Math.round(c.height*ts);t.getContext('2d').drawImage(c,0,0,t.width,t.height);
+async function encode(src,w,h){const s=Math.min(1,1400/Math.max(w,h)),c=document.createElement('canvas');c.width=Math.round(w*s);c.height=Math.round(h*s);c.getContext('2d').drawImage(src,0,0,c.width,c.height);
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.65));const t=document.createElement('canvas'),ts=240/Math.max(c.width,c.height);t.width=Math.round(c.width*ts);t.height=Math.round(c.height*ts);t.getContext('2d').drawImage(c,0,0,t.width,t.height);
   return{blob,thumb:await new Promise(r=>t.toBlob(r,'image/jpeg',.7))}}
 async function saveRec(r){r.updated=Date.now();await put('records',r);recs.set(r.id,r);drawRecs();update();markDirty(r.pid)}
 // photo numbers per manhole never repeat (file names in Dropbox are built from them)
@@ -528,8 +531,8 @@ function syncUi(){const on=!!DBX.refresh(),b=$('#bSync');let cls='off',txt;
   b.className=cls;b.title=txt;$('#sBadge').hidden=!pending;$('#sBadge').textContent=pending;
   $('#dbxStat').textContent=on?txt:'לא מחובר – התמונות נשמרות רק בטלפון';$('#dbxSetup').hidden=on;$('#dbxOn').hidden=!on;if(!$('#dbxKey').value)$('#dbxKey').value=DBX.key()}
 $('#bSync').onclick=()=>{if(!DBX.refresh()){toast('צריך להתחבר לדרופבוקס (במסך הפרויקטים)');return}toast($('#bSync').title);sync()};
-$('#dbxGo').onclick=async()=>{const k=$('#dbxKey').value.trim();if(!k)return toast('הדבק את ה-App key');LS.set('dbxKey',k);location.href=await dbxAuthUrl(true)};
-$('#dbxPaste').onclick=async()=>{const k=$('#dbxKey').value.trim();if(!k)return toast('הדבק קודם את ה-App key');LS.set('dbxKey',k);$('#dbxCodeBox').hidden=false;const u=await dbxAuthUrl(false);const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()};
+$('#dbxGo').onclick=async()=>{const k=$('#dbxKey').value.trim();if(!k)return toast('הדבק את ה-App key');LS.set('dbxKey',k);if(STANDALONE)return $('#dbxPaste').onclick();location.href=await dbxAuthUrl(true)};
+$('#dbxPaste').onclick=async()=>{const k=$('#dbxKey').value.trim();if(!k)return toast('הדבק קודם את ה-App key');LS.set('dbxKey',k);$('#dbxCodeBox').hidden=false;toast('אשר בדרופבוקס, העתק את הקוד וחזור לכאן');const u=await dbxAuthUrl(false);const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()};
 $('#dbxCodeGo').onclick=async()=>{try{await dbxExchange($('#dbxCode').value,false);$('#dbxCodeBox').hidden=true;toast('מחובר לדרופבוקס');markAllDirty();sync()}catch(e){toast('החיבור נכשל: '+e.message)}};
 $('#dbxNow').onclick=()=>{markAllDirty();sync()};
 $('#dbxOff').onclick=()=>arm($('#dbxOff'),'לחץ שוב לניתוק',()=>{['dbxRefresh','dbxAccess','dbxExp'].forEach(k=>LS.set(k,''));syncUi()});
@@ -538,6 +541,10 @@ async function dbxReturn(){const q=new URLSearchParams(location.search);if(!q.ha
   if(q.get('error')){toast('החיבור לדרופבוקס בוטל');return}try{await dbxExchange(q.get('code'),true);toast('מחובר לדרופבוקס ✓');await markAllDirty()}catch(e){toast('החיבור נכשל: '+e.message)}}
 addEventListener('online',()=>sync());document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});setInterval(()=>{if(pending||dirty.size)sync()},60000);
 
+/* ---------- running in a browser instead of the home-screen app ---------- */
+const STANDALONE=navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+if(!STANDALONE&&/iPhone|iPad|Android/i.test(navigator.userAgent)){const br=/CriOS/.test(navigator.userAgent)?'בכרום':/FxiOS/.test(navigator.userAgent)?'בפיירפוקס':'בספארי';
+  document.querySelectorAll('#home header,#mapv header').forEach(h=>h.insertAdjacentHTML('afterend',`<div class="brw"><span>⚠️ פתוח ${br} ולא באפליקציה – מה שתצלם כאן לא יופיע באפליקציה שבמסך הבית</span><button aria-label="הסתר" onclick="this.parentNode.remove()">×</button></div>`))}
 /* ---------- start ---------- */
 (async()=>{try{await openDb()}catch(e){document.body.innerHTML='<p style="padding:30px">האחסון בדפדפן לא זמין (מצב פרטי?)</p>';return}
   if(!(await get('projects','demo-4087-25')))await put('projects',{id:'demo-4087-25',name:'תוכנית '+DEMO.plan+' (דוגמה)',plan:DEMO.plan,created:1,lines:DEMO.lines,pts:DEMO.pts,ref:DEMO.ref});
