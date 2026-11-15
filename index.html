@@ -101,7 +101,7 @@ header h1 small{display:block;font-size:12px;font-weight:500;color:var(--mute)}
 #camTop .t{display:flex;align-items:center;gap:8px;font-weight:700}
 #camTop .t span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #camTop .ib{color:#fff}
-#cam .inf button{background:rgba(0,0,0,.45);border-color:rgba(255,255,255,.35);color:#fff;min-height:38px;padding:5px 11px;font-size:14px}
+#camInf{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -10px;padding:0 10px}#camInf::-webkit-scrollbar{display:none}#cam .inf button{flex:none;white-space:nowrap;background:rgba(0,0,0,.45);border-color:rgba(255,255,255,.35);color:#fff;min-height:38px;padding:5px 11px;font-size:14px}
 #compass{position:absolute;left:50%;top:50%;width:min(64vw,280px);aspect-ratio:1;transform:translate(-50%,-50%);z-index:1;pointer-events:none}
 #cstat{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(var(--sb) + 150px);background:rgba(0,0,0,.6);padding:6px 14px;border-radius:999px;font-weight:700;font-size:15px;z-index:2;white-space:nowrap}
 #cstat.ok{background:var(--ok)}
@@ -164,9 +164,10 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
       <button id="bList" aria-label="שוחות שתועדו"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/></svg><span class="badge" id="cnt" hidden>0</span></button>
     </div>
     <div id="layers">
+      <label><input type="checkbox" data-k="snap" id="snapCb" checked><span class="dot" style="border:2px dashed var(--ink)"></span>הצמדה לשוחות</label>
       <label><input type="checkbox" data-k="mh" checked><span class="dot" style="border:3px solid var(--red)"></span>שוחות מדודות</label>
       <label><input type="checkbox" data-k="mhtxt" checked><span class="dot" style="border:3px solid var(--org)"></span>שוחות מכיתוב בלבד</label>
-      <label><input type="checkbox" data-k="rec" checked><span class="dot" style="background:#8b5a2b"></span>שוחות שתיעדתי</label>
+      <label><input type="checkbox" data-k="rec" checked><span class="dot" style="background:#A16207"></span>שוחות שתיעדתי</label>
       <label><input type="checkbox" data-k="sp" checked><span class="dot" style="background:#7c8a99"></span>תמרורים ועמודי תאורה</label>
       <label><input type="checkbox" data-k="h"><span class="dot" style="background:#b4b0a6"></span>נקודות גובה</label>
       <label><input type="checkbox" data-k="lbl" checked><span class="dot" style="border:2px solid var(--mute)"></span>כיתובים</label>
@@ -219,7 +220,8 @@ const DEMO={"plan":"4087-25","lines":[{"l":"M2404","c":[[34.64996606,31.81503597
 const LIBDWG='https://cdn.jsdelivr.net/npm/@mlightcad/libredwg-web@0.8.8/';
 const PROJ4='https://cdn.jsdelivr.net/npm/proj4@2.12.1/dist/proj4.js';
 const DECL=5; // magnetic declination in Israel (deg east) -> true north
-const INFRA=[['sewer','ביוב','#8b5a2b'],['drain','ניקוז','#2f8f5b'],['water','מים','#1d6fd6'],['elec','חשמל','#d1261b'],['bezeq','בזק','#ec7a00'],['comm','תקשורת','#7b4bd1'],['gas','גז','#c9a000'],['light','תאורה','#5d6b78'],['other','אחר','#8d8d8d']];
+// same list, order and colours as the Medidot app
+const INFRA=[['sewer','ביוב','#A16207'],['drain','ניקוז','#0EA5E9'],['water','מים','#1D4ED8'],['bezeq','בזק','#15803D'],['hot','הוט','#EA580C'],['cellcom','סלקום','#7C3AED'],['partner','פרטנר','#0D9488'],['unlimited','אנלימיטד','#BE185D'],['light','תאורה','#D97706'],['elec','חשמל','#DC2626'],['hv','חשמל מתח גבוה','#9A3412'],['gas','גז','#EAB308','#1A1A1A'],['comm','תקשורת','#475569'],['traffic','רמזורים','#EC4899'],['citycomm','תקשורת עירונית','#4ADE80','#14532D'],['irrig','השקיה','#16A34A'],['other','אחר','#8D8D8D']];
 const IC=Object.fromEntries(INFRA.map(i=>[i[0],i]));
 const $=s=>document.querySelector(s);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -290,7 +292,8 @@ $('#plist').addEventListener('click',e=>{const d=e.target.closest('[data-del]');
 
 /* ---------- map ---------- */
 let P=null,PT=[],A=null,recs=new Map(),recByPt=new Map(),map,mapReady,B;
-const vis={mh:1,mhtxt:1,rec:1,sp:1,h:0,lbl:1};
+const vis={mh:1,mhtxt:1,rec:1,sp:1,h:0,lbl:1,snap:LS.get('nosnap')?0:1};
+const SNAP_PX=12,SNAP_M=1; // crosshair locks onto a manhole only when it is right on it
 const fc=f=>({type:'FeatureCollection',features:f});
 const fmt=([x,y])=>`Y ${y.toFixed(2)}   X ${x.toFixed(2)}`;
 function affine(ref){const m=ref.map(p=>[p.ll[0],p.ll[1],1]);const det=a=>a[0][0]*(a[1][1]*a[2][2]-a[1][2]*a[2][1])-a[0][1]*(a[1][0]*a[2][2]-a[1][2]*a[2][0])+a[0][2]*(a[1][0]*a[2][1]-a[1][1]*a[2][0]);
@@ -344,11 +347,11 @@ function targets(){const t=[];for(const p of PT){if((p.k==='mh'&&vis.mh)||(p.k==
   if(vis.rec)for(const r of recs.values())if(r.pt==null)t.push({t:'rec',r,ll:r.ll});return t}
 const tName=o=>o.t==='rec'?o.r.name:o.p.k==='mh'?'ת.ב. '+o.p.name:o.p.name;
 function update(){if(!P)return;const c=map.project(map.getCenter()),m=mpp();
-  cand=targets().map(o=>{const s=map.project(o.ll),d=Math.hypot(s.x-c.x,s.y-c.y);return{...o,d,m:d*m}}).filter(o=>o.d<44&&o.m<6).sort((a,b)=>a.d-b.d);
-  const near=cand.filter(o=>o.d<30&&o.m<2.5);if(cur&&!near.some(o=>o.ll===cur.ll))cur=null;if(!cur&&near.length)cur=near[0];show();labels()}
+  cand=targets().map(o=>{const s=map.project(o.ll),d=Math.hypot(s.x-c.x,s.y-c.y);return{...o,d,m:d*m}}).filter(o=>vis.snap&&o.d<=SNAP_PX&&o.m<=SNAP_M).sort((a,b)=>a.d-b.d);
+  const near=cand;if(cur&&!near.some(o=>o.ll===cur.ll))cur=null;if(!cur&&near.length)cur=near[0];show();labels()}
 function recOf(o){return o?(o.t==='rec'?o.r:recByPt.get(o.p.id)):null}
 function show(){const rc=recOf(cur);let kind,title,col;
-  if(!cur){kind='מיקום חופשי';title='אין שוחה מדודה כאן';col='#16191c'}
+  if(!cur){kind=vis.snap?'מיקום חופשי':'מיקום חופשי · הצמדה כבויה';title='אין שוחה מדודה כאן';col='#16191c'}
   else if(cur.t==='rec'){kind='תיעוד קיים · מיקום חופשי';title=cur.r.name;col=cur.r.infra?IC[cur.r.infra][2]:'#16191c'}
   else{const p=cur.p;kind=p.k==='mh'?'שוחה מדודה':'שוחה · כיתוב בלבד';title=(p.k==='mh'?'נקודה '+p.name:p.name)+(p.h?' · מכסה '+p.h:'');col=p.k==='mh'?'#d1261b':'#ec7a00'}
   if(rc){kind='✓ תועד · '+(rc.n||0)+' תמונות'+(rc.infra?' · '+IC[rc.infra][1]:'');col=rc.infra?IC[rc.infra][2]:'#14a44d'}
@@ -367,7 +370,7 @@ $('#sf').addEventListener('submit',e=>{e.preventDefault();const q=$('#q').value.
   const ll=p?p.ll:r?r.ll:null;if(!ll)return toast('לא נמצאה נקודה '+q);follow=false;gpsBtn();map.flyTo({center:ll,zoom:21.5})});
 $('#bFit').onclick=()=>{follow=false;gpsBtn();fit()};
 $('#bLay').onclick=()=>{$('#layers').classList.toggle('open');$('#bLay').classList.toggle('on')};
-$('#layers').addEventListener('change',e=>{const k=e.target.dataset.k;vis[k]=e.target.checked?1:0;if(k!=='lbl')map.setLayoutProperty(k,'visibility',vis[k]?'visible':'none');update()});
+$('#layers').addEventListener('change',e=>{const k=e.target.dataset.k;vis[k]=e.target.checked?1:0;if(k==='snap'){LS.set('nosnap',vis.snap?'':'1');cur=null;update();return}if(k!=='lbl')map.setLayoutProperty(k,'visibility',vis[k]?'visible':'none');update()});
 $('#back').onclick=home;
 
 /* ---------- GPS ---------- */
@@ -399,13 +402,13 @@ let cRaf=0;function compassUi(){if(cRaf)return;cRaf=requestAnimationFrame(()=>{c
   const d=heading>180?heading-360:heading;s.textContent=ok?'↑ צפון – אפשר לצלם':`סובב ${Math.abs(Math.round(d))}° ${d>0?'שמאלה':'ימינה'}`})}
 
 /* ---------- camera ---------- */
-let camRec=null,stream=null;
-const infBtns=(sel)=>INFRA.map(([k,l,c])=>`<button data-k="${k}" class="${sel===k?'on':''}" style="${sel===k?`background:${c};border-color:${c}`:''}"><i style="background:${c}"></i>${l}</button>`).join('');
-async function openCam(r){camRec=r;screen('cam');$('#camName').textContent=r.name;$('#camInf').innerHTML=infBtns(r.infra);$('#strip').innerHTML='';$('#camErr').classList.remove('on');compassUi();
+let camRec=null,stream=null,camFirst=null;
+const infBtns=(sel,first)=>{const L=first&&IC[first]?[IC[first],...INFRA.filter(i=>i[0]!==first)]:INFRA;return L.map(([k,l,c,tx])=>`<button data-k="${k}" class="${sel===k?'on':''}" style="${sel===k?`background:${c};border-color:${c};color:${tx||'#fff'}`:''}"><i style="background:${c}"></i>${l}</button>`).join('')};
+async function openCam(r){camRec=r;screen('cam');$('#camName').textContent=r.name;camFirst=LS.get('lastInf');$('#camInf').innerHTML=infBtns(r.infra,camFirst);$('#camInf').scrollLeft=0;$('#strip').innerHTML='';$('#camErr').classList.remove('on');compassUi();
   try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1920}}});const v=$('#video');v.srcObject=stream;await v.play()}
   catch(e){$('#camErrT').textContent='אין גישה למצלמה בתוך האפליקציה';$('#camErr').classList.add('on')}}
 function closeCam(){if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('#video').srcObject=null}
-$('#camInf').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;camRec.infra=camRec.infra===b.dataset.k?null:b.dataset.k;$('#camInf').innerHTML=infBtns(camRec.infra);if(recs.has(camRec.id))await saveRec(camRec)});
+$('#camInf').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;camRec.infra=camRec.infra===b.dataset.k?null:b.dataset.k;if(camRec.infra)LS.set('lastInf',camRec.infra);const sl=$('#camInf').scrollLeft;$('#camInf').innerHTML=infBtns(camRec.infra,camFirst);$('#camInf').scrollLeft=sl;if(recs.has(camRec.id))await saveRec(camRec)});
 async function encode(src,w,h){const s=Math.min(1,1600/Math.max(w,h)),c=document.createElement('canvas');c.width=Math.round(w*s);c.height=Math.round(h*s);c.getContext('2d').drawImage(src,0,0,c.width,c.height);
   const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.78));const t=document.createElement('canvas'),ts=240/Math.max(c.width,c.height);t.width=Math.round(c.width*ts);t.height=Math.round(c.height*ts);t.getContext('2d').drawImage(c,0,0,t.width,t.height);
   return{blob,thumb:await new Promise(r=>t.toBlob(r,'image/jpeg',.7))}}
@@ -433,7 +436,7 @@ async function openRec(r){openR=r;urls.forEach(URL.revokeObjectURL);urls=[];$('#
   $('#rInf').innerHTML=infBtns(r.infra);const ph=(await byIdx('photos','rid',r.id)).sort((a,b)=>a.ts-b.ts);
   $('#rGrid').innerHTML=ph.length?ph.map(p=>{const u=URL.createObjectURL(p.thumb);urls.push(u);return`<figure data-id="${p.id}"><img src="${u}" alt="">${arrow(p.hd,p.north)}</figure>`}).join(''):'<div class="empty">אין תמונות</div>';
   $('#rDel').classList.remove('arm');$('#rDel').textContent='מחק שוחה';sheet('listS',false);sheet('recS',true)}
-$('#rInf').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;openR.infra=openR.infra===b.dataset.k?null:b.dataset.k;$('#rInf').innerHTML=infBtns(openR.infra);await saveRec(openR)});
+$('#rInf').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;openR.infra=openR.infra===b.dataset.k?null:b.dataset.k;if(openR.infra)LS.set('lastInf',openR.infra);$('#rInf').innerHTML=infBtns(openR.infra);await saveRec(openR)});
 $('#rMore').onclick=()=>{requestCompass();sheet('recS',false);openCam(openR)};
 $('#rDel').onclick=()=>arm($('#rDel'),'לחץ שוב למחיקה',async()=>{for(const p of await byIdx('photos','rid',openR.id))await del('photos',p.id);await del('records',openR.id);recs.delete(openR.id);sheet('recS',false);drawRecs();cur=null;update();toast('השוחה נמחקה')});
 let vPh=null,vUrl;
@@ -450,6 +453,7 @@ $('#lBody').addEventListener('click',e=>{const r=e.target.closest('.row');if(!r)
 /* ---------- start ---------- */
 (async()=>{try{await openDb()}catch(e){document.body.innerHTML='<p style="padding:30px">האחסון בדפדפן לא זמין (מצב פרטי?)</p>';return}
   if(!(await get('projects','demo-4087-25')))await put('projects',{id:'demo-4087-25',name:'תוכנית '+DEMO.plan+' (דוגמה)',plan:DEMO.plan,created:1,lines:DEMO.lines,pts:DEMO.pts,ref:DEMO.ref});
+  $('#snapCb').checked=!!vis.snap;
   const last=LS.get('last');if(last&&await get('projects',last))openProject(last);else home()})();
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
