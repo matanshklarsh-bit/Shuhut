@@ -125,6 +125,17 @@ header h1 small{display:block;font-size:12px;font-weight:500;color:var(--mute)}
 #viewer .vbar .ib{color:#fff}
 #vdel{border:1px solid rgba(255,255,255,.4);background:none;color:#fff;border-radius:10px;padding:8px 12px;font:600 14px Heebo;cursor:pointer}
 #vdel.arm{background:var(--red);border-color:var(--red)}
+#bSync{width:44px;height:44px;border:0;background:none;border-radius:12px;display:grid;place-items:center;cursor:pointer;flex:none;position:relative;color:var(--mute)}
+#bSync svg{width:26px;height:26px}#bSync.ok{color:var(--ok)}#bSync.wait{color:var(--org)}#bSync.busy{color:var(--blue)}#bSync.busy svg{animation:pulse 1s infinite alternate}
+@keyframes pulse{to{opacity:.35}}
+.dbx{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:16px;display:flex;flex-direction:column;gap:8px}
+.dbx b{font-size:17px}.dbx>span{font-size:14px;color:var(--mute)}
+.dbx input{width:100%;font:16px Heebo,sans-serif;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);direction:ltr}
+.dbx .row2{display:flex;gap:8px}.dbx .row2 button,.dbx .b2{flex:1;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font:700 15px Heebo;cursor:pointer}
+.dbx .pri{background:#0061FE;color:#fff;border-color:#0061FE}
+.dbx .lk{background:none;border:0;color:var(--blue);font:500 14px Heebo;text-align:start;padding:4px 0;cursor:pointer}
+.dbx .arm{background:var(--red)!important;color:#fff!important}
+[hidden]{display:none!important}
 #toast{position:fixed;left:50%;top:calc(var(--st) + 70px);transform:translate(-50%,-10px);opacity:0;background:var(--ink);color:#fff;padding:9px 16px;border-radius:12px;font-size:15px;z-index:60;transition:.2s;pointer-events:none;white-space:nowrap}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
@@ -142,6 +153,15 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
     <input type="file" id="dwgIn" accept=".dwg,application/acad,application/octet-stream" hidden>
     <div id="imp"></div>
     <div id="plist"></div>
+    <div class="dbx"><b>דרופבוקס</b><span id="dbxStat"></span>
+      <div id="dbxSetup" style="display:flex;flex-direction:column;gap:8px">
+        <input id="dbxKey" placeholder="App key" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="App key של דרופבוקס">
+        <button class="b2 pri" id="dbxGo">התחבר לדרופבוקס</button>
+        <button class="lk" id="dbxPaste">החיבור לא חזר לאפליקציה? התחברות עם קוד</button>
+        <div id="dbxCodeBox" class="row2" hidden><input id="dbxCode" placeholder="הדבק את הקוד מדרופבוקס"><button class="b2" id="dbxCodeGo" style="flex:0 0 80px">אשר</button></div>
+      </div>
+      <div id="dbxOn" class="row2" hidden><button id="dbxNow">סנכרן עכשיו</button><button id="dbxOff">נתק</button></div>
+    </div>
     <p class="hint" id="store"></p>
   </main>
 </section>
@@ -151,6 +171,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
   <header>
     <button class="ib" id="back" aria-label="פרויקטים"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
     <h1 id="pname">—<small id="pinfo"></small></h1>
+    <button id="bSync" class="off" aria-label="גיבוי לדרופבוקס"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 18h10.5a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.2 9.1 4.5 4.5 0 0 0 7 18z"/></svg><span class="badge" id="sBadge" hidden>0</span></button>
     <form class="search" id="sf"><input id="q" inputmode="numeric" placeholder="מס׳ נקודה" aria-label="חיפוש לפי מספר נקודה"></form>
   </header>
   <div id="wrap">
@@ -235,7 +256,9 @@ function arm(btn,label,fn){if(btn.classList.contains('arm')){btn.classList.remov
 let db;const req=r=>new Promise((a,b)=>{r.onsuccess=()=>a(r.result);r.onerror=()=>b(r.error)});
 const os=(s,m)=>db.transaction(s,m||'readonly').objectStore(s);
 const put=(s,v)=>req(os(s,'readwrite').put(v)),get=(s,k)=>req(os(s).get(k)),del=(s,k)=>req(os(s,'readwrite').delete(k)),all=(s)=>req(os(s).getAll()),byIdx=(s,i,k)=>req(os(s).index(i).getAll(k));
-async function openDb(){db=await req(Object.assign(indexedDB.open('shuhot',1),{onupgradeneeded:e=>{const d=e.target.result;d.createObjectStore('projects',{keyPath:'id'});d.createObjectStore('records',{keyPath:'id'}).createIndex('pid','pid');d.createObjectStore('photos',{keyPath:'id'}).createIndex('rid','rid')}}))}
+async function openDb(){db=await req(Object.assign(indexedDB.open('shuhot',2),{onupgradeneeded:e=>{const d=e.target.result,tx=e.target.transaction;
+  if(e.oldVersion<1){d.createObjectStore('projects',{keyPath:'id'});d.createObjectStore('records',{keyPath:'id'}).createIndex('pid','pid');d.createObjectStore('photos',{keyPath:'id'}).createIndex('rid','rid')}
+  if(e.oldVersion<2){const q=d.createObjectStore('queue',{keyPath:'id'});if(e.oldVersion>=1)tx.objectStore('photos').openCursor().onsuccess=ev=>{const c=ev.target.result;if(!c)return;if(c.value.blob&&!c.value.up)q.put({id:c.value.id});c.continue()}}}}))}
 const LS={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
 
 /* ---------- DWG import ---------- */
@@ -283,10 +306,10 @@ $('#dwgIn').addEventListener('change',async e=>{const f=e.target.files[0];e.targ
   catch(err){console.error(err);st.textContent='שגיאה: '+(err.message||err)}});
 
 /* ---------- home ---------- */
-async function home(){screen('home');stopGps();const ps=(await all('projects')).sort((a,b)=>b.created-a.created);const recs=await all('records');
+async function home(){screen('home');stopGps();syncUi();const ps=(await all('projects')).sort((a,b)=>b.created-a.created);const recs=await all('records');
   $('#plist').innerHTML=ps.map(p=>{const r=recs.filter(x=>x.pid===p.id);const n=r.reduce((s,x)=>s+(x.n||0),0);
     return`<div class="proj" data-id="${p.id}"><div><b>${esc(p.name)}</b><span>${r.length} שוחות תועדו · ${n} תמונות</span></div><button class="x" data-del="${p.id}">מחק</button></div>`}).join('')||'<p class="hint">אין עדיין פרויקטים.</p>';
-  try{const e=await navigator.storage.estimate();$('#store').textContent=`נפח בשימוש בטלפון: ${(e.usage/1048576).toFixed(1)} MB · הכל נשמר בטלפון בלבד בשלב זה (דרופבוקס – בשלב הבא).`}catch(e){}}
+  try{const e=await navigator.storage.estimate();$('#store').textContent=`נפח בשימוש בטלפון: ${(e.usage/1048576).toFixed(1)} MB`}catch(e){}}
 $('#plist').addEventListener('click',e=>{const d=e.target.closest('[data-del]');if(d){e.stopPropagation();arm(d,'בטוח?',async()=>{const id=d.dataset.del;for(const r of await byIdx('records','pid',id)){for(const ph of await byIdx('photos','rid',r.id))await del('photos',ph.id);await del('records',r.id)}await del('projects',id);home()});return}
   const c=e.target.closest('.proj');if(c)openProject(c.dataset.id)});
 
@@ -412,9 +435,12 @@ $('#camInf').addEventListener('click',async e=>{const b=e.target.closest('button
 async function encode(src,w,h){const s=Math.min(1,1600/Math.max(w,h)),c=document.createElement('canvas');c.width=Math.round(w*s);c.height=Math.round(h*s);c.getContext('2d').drawImage(src,0,0,c.width,c.height);
   const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.78));const t=document.createElement('canvas'),ts=240/Math.max(c.width,c.height);t.width=Math.round(c.width*ts);t.height=Math.round(c.height*ts);t.getContext('2d').drawImage(c,0,0,t.width,t.height);
   return{blob,thumb:await new Promise(r=>t.toBlob(r,'image/jpeg',.7))}}
-async function saveRec(r){r.updated=Date.now();await put('records',r);recs.set(r.id,r);drawRecs();update()}
-async function addPhoto(enc,src){const ph={id:uid(),rid:camRec.id,blob:enc.blob,thumb:enc.thumb,hd:heading==null?null:Math.round(heading),north:northOk(),src,ts:Date.now()};
-  await put('photos',ph);camRec.n=(camRec.n||0)+1;if(!camRec.cover)camRec.cover=enc.thumb;await saveRec(camRec);
+async function saveRec(r){r.updated=Date.now();await put('records',r);recs.set(r.id,r);drawRecs();update();markDirty(r.pid)}
+// photo numbers per manhole never repeat (file names in Dropbox are built from them)
+async function nextNo(r){const ex=await byIdx('photos','rid',r.id),fresh=await get('records',r.id),m=recs.get(r.id);
+  const n=Math.max(r.maxNo||0,fresh&&fresh.maxNo||0,m&&m.maxNo||0,...ex.map(x=>x.no||0))+1;r.maxNo=n;if(m)m.maxNo=n;if(fresh){fresh.maxNo=n;await put('records',fresh)}return n}
+async function addPhoto(enc,src){const no=await nextNo(camRec);const ph={id:uid(),rid:camRec.id,no,blob:enc.blob,thumb:enc.thumb,hd:heading==null?null:Math.round(heading),north:northOk(),src,ts:Date.now()};
+  await put('photos',ph);await put('queue',{id:ph.id});pending++;camRec.n=(camRec.n||0)+1;if(!camRec.cover)camRec.cover=enc.thumb;await saveRec(camRec);
   const im=new Image();im.src=URL.createObjectURL(enc.thumb);$('#strip').prepend(im);while($('#strip').children.length>3)$('#strip').lastChild.remove();
   try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}}
 $('#shoot').addEventListener('click',async()=>{const v=$('#video');if(!v.videoWidth)return toast('המצלמה עוד לא מוכנה');const f=$('#flash');f.style.transition='none';f.style.opacity=.85;requestAnimationFrame(()=>{f.style.transition='';f.style.opacity=0});
@@ -433,27 +459,89 @@ $('#veil').onclick=()=>document.querySelectorAll('.sheet.open').forEach(s=>sheet
 const arrow=(hd,ok)=>hd==null?'':`<span class="hd ${ok?'ok':''}"><svg viewBox="0 0 16 16" style="transform:rotate(${hd}deg)"><path d="M8 2l4 10-4-2-4 2z" fill="#fff"/></svg></span>`;
 async function openRec(r){openR=r;urls.forEach(URL.revokeObjectURL);urls=[];$('#rName').textContent=r.name;
   $('#rSub').innerHTML=`${new Date(r.created).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'})} · <span class="ltr">${fmt(r.xy)}</span>`;
+  byIdx('photos','rid',r.id).then(a=>{const up=a.filter(x=>x.up).length;if(a.length&&openR===r)$('#rSub').insertAdjacentHTML('beforeend',` · ${up===a.length?'☁ ✓ בדרופבוקס':`☁ ${up}/${a.length} בדרופבוקס`}`)});
   $('#rInf').innerHTML=infBtns(r.infra);const ph=(await byIdx('photos','rid',r.id)).sort((a,b)=>a.ts-b.ts);
   $('#rGrid').innerHTML=ph.length?ph.map(p=>{const u=URL.createObjectURL(p.thumb);urls.push(u);return`<figure data-id="${p.id}"><img src="${u}" alt="">${arrow(p.hd,p.north)}</figure>`}).join(''):'<div class="empty">אין תמונות</div>';
   $('#rDel').classList.remove('arm');$('#rDel').textContent='מחק שוחה';sheet('listS',false);sheet('recS',true)}
 $('#rInf').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;openR.infra=openR.infra===b.dataset.k?null:b.dataset.k;if(openR.infra)LS.set('lastInf',openR.infra);$('#rInf').innerHTML=infBtns(openR.infra);await saveRec(openR)});
 $('#rMore').onclick=()=>{requestCompass();sheet('recS',false);openCam(openR)};
-$('#rDel').onclick=()=>arm($('#rDel'),'לחץ שוב למחיקה',async()=>{for(const p of await byIdx('photos','rid',openR.id))await del('photos',p.id);await del('records',openR.id);recs.delete(openR.id);sheet('recS',false);drawRecs();cur=null;update();toast('השוחה נמחקה')});
+$('#rDel').onclick=()=>arm($('#rDel'),'לחץ שוב למחיקה',async()=>{for(const p of await byIdx('photos','rid',openR.id)){dbxDel(p.path);await del('queue',p.id);await del('photos',p.id)}await del('records',openR.id);markDirty(openR.pid);recs.delete(openR.id);sheet('recS',false);drawRecs();cur=null;update();toast('השוחה נמחקה')});
 let vPh=null,vUrl;
-$('#rGrid').addEventListener('click',async e=>{const f=e.target.closest('figure');if(!f)return;vPh=await get('photos',f.dataset.id);if(vUrl)URL.revokeObjectURL(vUrl);vUrl=URL.createObjectURL(vPh.blob);$('#vImg').src=vUrl;
+$('#rGrid').addEventListener('click',async e=>{const f=e.target.closest('figure');if(!f)return;vPh=await get('photos',f.dataset.id);if(vUrl)URL.revokeObjectURL(vUrl);vUrl=URL.createObjectURL(vPh.blob||vPh.thumb);$('#vImg').src=vUrl;
+  if(!vPh.blob&&vPh.path){const want=vPh.id;dbxRpc('files/get_temporary_link',{path:vPh.path}).then(j=>{if(vPh&&vPh.id===want)$('#vImg').src=j.link}).catch(()=>toast('צריך אינטרנט כדי לראות את התמונה המלאה'))}
   $('#vInfo').textContent=new Date(vPh.ts).toLocaleTimeString('he-IL',{timeStyle:'short'})+(vPh.hd!=null?` · כיוון ${vPh.hd}°${vPh.north?' (צפון ✓)':''}`:'');$('#vdel').classList.remove('arm');$('#vdel').textContent='מחק תמונה';screen('viewer')});
 $('#vX').onclick=()=>{screen('mapv');map.resize()};
-$('#vdel').onclick=()=>arm($('#vdel'),'בטוח?',async()=>{await del('photos',vPh.id);openR.n=Math.max(0,(openR.n||1)-1);const rest=await byIdx('photos','rid',openR.id);rest.sort((a,b)=>a.ts-b.ts);openR.cover=rest[0]?rest[0].thumb:null;await saveRec(openR);screen('mapv');openRec(openR)});
+$('#vdel').onclick=()=>arm($('#vdel'),'בטוח?',async()=>{dbxDel(vPh.path);await del('queue',vPh.id);await del('photos',vPh.id);openR.n=Math.max(0,(openR.n||1)-1);const rest=await byIdx('photos','rid',openR.id);rest.sort((a,b)=>a.ts-b.ts);openR.cover=rest[0]?rest[0].thumb:null;await saveRec(openR);screen('mapv');openRec(openR)});
 // list
 $('#bList').onclick=()=>{const rs=[...recs.values()].sort((a,b)=>(b.updated||0)-(a.updated||0));urls.forEach(URL.revokeObjectURL);urls=[];
   $('#lBody').innerHTML=rs.length?rs.map(r=>{let im='<span class="ph"></span>';if(r.cover){const u=URL.createObjectURL(r.cover);urls.push(u);im=`<img src="${u}" alt="">`}
     return`<div class="row" data-id="${r.id}">${im}<div><b>${esc(r.name)}</b><span>${r.infra?IC[r.infra][1]+' · ':''}${r.n||0} תמונות · ${new Date(r.updated||r.created).toLocaleTimeString('he-IL',{timeStyle:'short'})}</span></div></div>`}).join(''):'<div class="empty">עוד לא תועדו שוחות. הזיזו את הכוונת לשוחה ולחצו ״צלם״.</div>';sheet('listS',true)};
 $('#lBody').addEventListener('click',e=>{const r=e.target.closest('.row');if(!r)return;const rc=recs.get(r.dataset.id);follow=false;gpsBtn();map.flyTo({center:rc.ll,zoom:21.5});openRec(rc)});
 
+/* ---------- Dropbox ---------- */
+const REDIR=location.origin+location.pathname.replace(/index\.html$/,'');
+const DBX={key:()=>LS.get('dbxKey')||'',refresh:()=>LS.get('dbxRefresh')||''};
+const b64u=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const hdr=o=>JSON.stringify(o).replace(/[\u007f-￿]/g,c=>'\\u'+('000'+c.charCodeAt(0).toString(16)).slice(-4));
+async function dbxAuthUrl(withRedirect){const v=b64u(crypto.getRandomValues(new Uint8Array(48)));LS.set('dbxVer',v);const ch=b64u(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v)));
+  const q={client_id:DBX.key(),response_type:'code',code_challenge:ch,code_challenge_method:'S256',token_access_type:'offline'};if(withRedirect)q.redirect_uri=REDIR;
+  return'https://www.dropbox.com/oauth2/authorize?'+new URLSearchParams(q)}
+function saveTok(j){if(j.refresh_token)LS.set('dbxRefresh',j.refresh_token);LS.set('dbxAccess',j.access_token);LS.set('dbxExp',String(Date.now()+(j.expires_in||14400)*1000))}
+async function dbxExchange(code,withRedirect){const q={code:code.trim(),grant_type:'authorization_code',code_verifier:LS.get('dbxVer')||'',client_id:DBX.key()};if(withRedirect)q.redirect_uri=REDIR;
+  const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',body:new URLSearchParams(q)});const j=await r.json().catch(()=>({}));
+  if(!r.ok||!j.refresh_token)throw new Error(j.error_description||j.error||'החיבור נכשל');saveTok(j);LS.set('dbxVer','')}
+async function dbxToken(force){if(!DBX.refresh())throw new Error('nolink');if(!force&&+LS.get('dbxExp')>Date.now()+60000)return LS.get('dbxAccess');
+  const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',body:new URLSearchParams({grant_type:'refresh_token',refresh_token:DBX.refresh(),client_id:DBX.key()})});const j=await r.json().catch(()=>({}));
+  if(!r.ok){if(j.error==='invalid_grant'){LS.set('dbxRefresh','');syncUi()}throw new Error(j.error||'token')}saveTok(j);return j.access_token}
+async function dbxCall(url,opts,retry=true){const t=await dbxToken();const r=await fetch(url,{...opts,headers:{...opts.headers,Authorization:'Bearer '+t}});
+  if(r.status===401&&retry){await dbxToken(true);return dbxCall(url,opts,false)}if(!r.ok){const e=new Error(await r.text());e.status=r.status;throw e}return r.json()}
+const dbxUpload=(path,blob)=>dbxCall('https://content.dropboxapi.com/2/files/upload',{method:'POST',headers:{'Dropbox-API-Arg':hdr({path,mode:'add',autorename:true,mute:true}),'Content-Type':'application/octet-stream'},body:blob});
+const dbxPut=(path,blob)=>dbxCall('https://content.dropboxapi.com/2/files/upload',{method:'POST',headers:{'Dropbox-API-Arg':hdr({path,mode:'overwrite',mute:true}),'Content-Type':'application/octet-stream'},body:blob});
+const dbxRpc=(ep,arg)=>dbxCall('https://api.dropboxapi.com/2/'+ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(arg)});
+async function dbxDel(path){if(!path||!DBX.refresh())return;try{await dbxRpc('files/delete_v2',{path})}catch(e){}}
+const safe=s=>String(s).replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,' ').trim();
+async function projFolder(p){if(!p.folder){p.folder='/'+safe(p.name);await put('projects',p)}return p.folder}
+const dirty=new Set((()=>{try{return JSON.parse(LS.get('dbxDirty')||'[]')}catch(e){return[]}})());
+function markDirty(pid){dirty.add(pid);LS.set('dbxDirty',JSON.stringify([...dirty]));soon()}
+let syncing=false,pending=0,syncErr='',sT;
+const soon=()=>{clearTimeout(sT);sT=setTimeout(sync,1500)};
+async function countPending(){try{pending=await req(os('queue').count())}catch(e){}syncUi()}
+async function writeJson(pid){const p=await get('projects',pid);if(!p)return;const rs=(await byIdx('records','pid',pid)).sort((a,b)=>a.created-b.created),out=[];
+  for(const r of rs){const ph=(await byIdx('photos','rid',r.id)).sort((a,b)=>a.ts-b.ts),pt=r.pt!=null?p.pts[r.pt]:null;
+    out.push({name:r.name,point:pt?pt.name:null,survey_code:pt?pt.code:null,lid_level:pt&&pt.h?pt.h:null,infra:r.infra?IC[r.infra][1]:null,itm:{y:+r.xy[1].toFixed(3),x:+r.xy[0].toFixed(3)},wgs84:{lat:r.ll[1],lon:r.ll[0]},
+      created:new Date(r.created).toISOString(),updated:new Date(r.updated||r.created).toISOString(),details:r.details||null,
+      photos:ph.map(x=>({file:x.path?x.path.split('/').pop():null,uploaded:!!x.up,heading_true_north:x.hd,north_up:!!x.north,taken:new Date(x.ts).toISOString()}))})}
+  const j={app:'שוחות',version:1,project:{name:p.name,plan:p.plan||null,dwg:p.file||null},updated:new Date().toISOString(),records:out};
+  await dbxPut(`${await projFolder(p)}/שוחות.json`,new Blob([JSON.stringify(j,null,1)],{type:'application/json'}))}
+async function sync(){if(syncing||!DBX.refresh())return syncUi();if(!navigator.onLine){syncErr='אין אינטרנט';return countPending()}syncing=true;syncErr='';syncUi();
+  try{const ids=await req(os('queue').getAllKeys());pending=ids.length;
+    for(const id of ids){const ph=await get('photos',id),r=ph&&await get('records',ph.rid),p=r&&await get('projects',r.pid);
+      if(!ph||!ph.blob||!r||!p){await del('queue',id);pending--;continue}
+      if(!ph.no){ph.no=await nextNo(r);await put('photos',ph)}
+      const res=await dbxUpload(`${await projFolder(p)}/תמונות/${safe(r.name)}_${ph.no}.jpg`,ph.blob);
+      ph.path=res.path_display;ph.up=Date.now();delete ph.blob;await put('photos',ph);await del('queue',id);pending--;dirty.add(p.id);syncUi()}
+    for(const pid of[...dirty]){await writeJson(pid);dirty.delete(pid);LS.set('dbxDirty',JSON.stringify([...dirty]))}}
+  catch(e){console.error(e);syncErr=e.message==='nolink'?'':navigator.onLine?'שגיאת סנכרון – ננסה שוב':'אין אינטרנט'}
+  finally{syncing=false;LS.set('dbxDirty',JSON.stringify([...dirty]));await countPending()}}
+function syncUi(){const on=!!DBX.refresh(),b=$('#bSync');let cls='off',txt;
+  if(!on)txt='לא מחובר';else if(syncing){cls='busy';txt=`מעלה… ${pending} נותרו`}else if(pending){cls='wait';txt=(syncErr||'ממתין')+` · ${pending} תמונות`}else if(syncErr){cls='wait';txt=syncErr}else{cls='ok';txt='הכל גובה בדרופבוקס'}
+  b.className=cls;b.title=txt;$('#sBadge').hidden=!pending;$('#sBadge').textContent=pending;
+  $('#dbxStat').textContent=on?txt:'לא מחובר – התמונות נשמרות רק בטלפון';$('#dbxSetup').hidden=on;$('#dbxOn').hidden=!on;if(!$('#dbxKey').value)$('#dbxKey').value=DBX.key()}
+$('#bSync').onclick=()=>{if(!DBX.refresh()){toast('צריך להתחבר לדרופבוקס (במסך הפרויקטים)');return}toast($('#bSync').title);sync()};
+$('#dbxGo').onclick=async()=>{const k=$('#dbxKey').value.trim();if(!k)return toast('הדבק את ה-App key');LS.set('dbxKey',k);location.href=await dbxAuthUrl(true)};
+$('#dbxPaste').onclick=async()=>{const k=$('#dbxKey').value.trim();if(!k)return toast('הדבק קודם את ה-App key');LS.set('dbxKey',k);$('#dbxCodeBox').hidden=false;const u=await dbxAuthUrl(false);const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()};
+$('#dbxCodeGo').onclick=async()=>{try{await dbxExchange($('#dbxCode').value,false);$('#dbxCodeBox').hidden=true;toast('מחובר לדרופבוקס');markAllDirty();sync()}catch(e){toast('החיבור נכשל: '+e.message)}};
+$('#dbxNow').onclick=()=>{markAllDirty();sync()};
+$('#dbxOff').onclick=()=>arm($('#dbxOff'),'לחץ שוב לניתוק',()=>{['dbxRefresh','dbxAccess','dbxExp'].forEach(k=>LS.set(k,''));syncUi()});
+async function markAllDirty(){for(const p of await all('projects'))if((await byIdx('records','pid',p.id)).length)dirty.add(p.id);LS.set('dbxDirty',JSON.stringify([...dirty]))}
+async function dbxReturn(){const q=new URLSearchParams(location.search);if(!q.has('code')&&!q.has('error'))return;history.replaceState(null,'',REDIR);
+  if(q.get('error')){toast('החיבור לדרופבוקס בוטל');return}try{await dbxExchange(q.get('code'),true);toast('מחובר לדרופבוקס ✓');await markAllDirty()}catch(e){toast('החיבור נכשל: '+e.message)}}
+addEventListener('online',()=>sync());document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});setInterval(()=>{if(pending||dirty.size)sync()},60000);
+
 /* ---------- start ---------- */
 (async()=>{try{await openDb()}catch(e){document.body.innerHTML='<p style="padding:30px">האחסון בדפדפן לא זמין (מצב פרטי?)</p>';return}
   if(!(await get('projects','demo-4087-25')))await put('projects',{id:'demo-4087-25',name:'תוכנית '+DEMO.plan+' (דוגמה)',plan:DEMO.plan,created:1,lines:DEMO.lines,pts:DEMO.pts,ref:DEMO.ref});
-  $('#snapCb').checked=!!vis.snap;
+  $('#snapCb').checked=!!vis.snap;await dbxReturn();syncUi();countPending();sync();
   const last=LS.get('last');if(last&&await get('projects',last))openProject(last);else home()})();
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
