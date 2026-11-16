@@ -154,6 +154,7 @@ header h1 small{display:block;font-size:12px;font-weight:500;color:var(--mute)}
 .dbx input{width:100%;font:16px Heebo,sans-serif;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);direction:ltr}
 .dbx .row2{display:flex;gap:8px}.dbx .row2 button,.dbx .b2{flex:1;min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font:700 15px Heebo;cursor:pointer}
 .dbx .pri{background:#0061FE;color:#fff;border-color:#0061FE}
+.dbx a.b2{display:flex;align-items:center;justify-content:center;text-decoration:none}.dbx a.lk{text-decoration:none;display:block}
 .dbx .lk{background:none;border:0;color:var(--blue);font:500 14px Heebo;text-align:start;padding:4px 0;cursor:pointer}
 .dbx .arm{background:var(--red)!important;color:#fff!important}
 [hidden]{display:none!important}
@@ -182,8 +183,8 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
     <div class="dbx"><b>דרופבוקס</b><span id="dbxStat"></span>
       <div id="dbxSetup" style="display:flex;flex-direction:column;gap:8px">
         <input id="dbxKey" placeholder="App key" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="App key של דרופבוקס">
-        <button class="b2 pri" id="dbxGo">התחבר לדרופבוקס</button>
-        <button class="lk" id="dbxPaste">החיבור לא חזר לאפליקציה? התחברות עם קוד</button>
+        <a class="b2 pri" id="dbxGo" href="#" target="_blank" rel="noopener">התחבר לדרופבוקס</a>
+        <a class="lk" id="dbxPaste" href="#" target="_blank" rel="noopener">החיבור לא חזר לאפליקציה? התחברות עם קוד</a>
         <div id="dbxCodeBox" class="row2" hidden><input id="dbxCode" placeholder="הדבק את הקוד מדרופבוקס"><button class="b2" id="dbxCodeGo" style="flex:0 0 80px">אשר</button></div>
       </div>
       <div id="dbxOn" class="row2" hidden><button id="dbxNow">סנכרן עכשיו</button><button id="dbxOff">נתק</button></div>
@@ -725,7 +726,7 @@ async function dbxAuthUrl(withRedirect){const v=b64u(crypto.getRandomValues(new 
 function saveTok(j){if(j.refresh_token)LS.set('dbxRefresh',j.refresh_token);LS.set('dbxAccess',j.access_token);LS.set('dbxExp',String(Date.now()+(j.expires_in||14400)*1000))}
 async function dbxExchange(code,withRedirect){const q={code:code.trim(),grant_type:'authorization_code',code_verifier:LS.get('dbxVer')||'',client_id:DBX.key()};if(withRedirect)q.redirect_uri=REDIR;
   const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',body:new URLSearchParams(q)});const j=await r.json().catch(()=>({}));
-  if(!r.ok||!j.refresh_token)throw new Error(j.error_description||j.error||'החיבור נכשל');saveTok(j);LS.set('dbxVer','')}
+  if(!r.ok||!j.refresh_token)throw new Error(/invalid_grant|code/.test((j.error||'')+(j.error_description||''))?'הקוד לא תקף (כבר נוצל או פג תוקף) – בקש קוד חדש':j.error==='invalid_client'?'ה-App key לא נכון':(j.error_description||j.error||'החיבור נכשל'));saveTok(j);LS.set('dbxVer','')}
 async function dbxToken(force){if(!DBX.refresh())throw new Error('nolink');if(!force&&+LS.get('dbxExp')>Date.now()+60000)return LS.get('dbxAccess');
   const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',body:new URLSearchParams({grant_type:'refresh_token',refresh_token:DBX.refresh(),client_id:DBX.key()})});const j=await r.json().catch(()=>({}));
   if(!r.ok){if(j.error==='invalid_grant'){LS.set('dbxRefresh','');syncUi()}throw new Error(j.error||'token')}saveTok(j);return j.access_token}
@@ -772,11 +773,18 @@ async function sync(){if(syncing||!DBX.refresh())return syncUi();if(!navigator.o
 function syncUi(){const on=!!DBX.refresh(),b=$('#bSync');let cls='off',txt;
   if(!on)txt='לא מחובר';else if(syncing){cls='busy';txt=`מעלה… ${pending} נותרו`}else if(pending){cls='wait';txt=(syncErr||'ממתין')+` · ${pending} תמונות`}else if(syncErr){cls='wait';txt=syncErr}else{cls='ok';txt='הכל גובה בדרופבוקס'}
   b.className=cls;b.title=txt;$('#sBadge').hidden=!pending;$('#sBadge').textContent=pending;
-  $('#dbxStat').textContent=on?txt:'לא מחובר – התמונות נשמרות רק בטלפון';$('#dbxSetup').hidden=on;$('#dbxOn').hidden=!on;if(!$('#dbxKey').value)$('#dbxKey').value=DBX.key()}
+  $('#dbxStat').textContent=on?txt:'לא מחובר – התמונות נשמרות רק בטלפון';if(!on)prepAuth();$('#dbxSetup').hidden=on;$('#dbxOn').hidden=!on;if(!$('#dbxKey').value)$('#dbxKey').value=DBX.key()}
 $('#bSync').onclick=()=>{if(!DBX.refresh()){toast('צריך להתחבר לדרופבוקס (במסך הפרויקטים)');return}toast($('#bSync').title);sync()};
-$('#dbxGo').onclick=async()=>{const k=$('#dbxKey').value.trim();if(!k)return toast('הדבק את ה-App key');LS.set('dbxKey',k);if(STANDALONE)return $('#dbxPaste').onclick();location.href=await dbxAuthUrl(true)};
-$('#dbxPaste').onclick=async()=>{const k=$('#dbxKey').value.trim();if(!k)return toast('הדבק קודם את ה-App key');LS.set('dbxKey',k);$('#dbxCodeBox').hidden=false;toast('אשר בדרופבוקס, העתק את הקוד וחזור לכאן');const u=await dbxAuthUrl(false);const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()};
-$('#dbxCodeGo').onclick=async()=>{try{await dbxExchange($('#dbxCode').value,false);$('#dbxCodeBox').hidden=true;toast('מחובר לדרופבוקס');markAllDirty();sync()}catch(e){toast('החיבור נכשל: '+e.message)}};
+// The Dropbox link must open straight from the tap (iOS blocks pages opened after an await), so its address is prepared in advance.
+async function prepAuth(){const k=($('#dbxKey').value||DBX.key()).trim();if(!k)return;if(!LS.get('dbxVer')||LS.get('dbxVerKey')!==k){LS.set('dbxVer',b64u(crypto.getRandomValues(new Uint8Array(48))));LS.set('dbxVerKey',k)}
+  const ch=b64u(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(LS.get('dbxVer')))),q={client_id:k,response_type:'code',code_challenge:ch,code_challenge_method:'S256',token_access_type:'offline'};
+  const noRed='https://www.dropbox.com/oauth2/authorize?'+new URLSearchParams(q),red='https://www.dropbox.com/oauth2/authorize?'+new URLSearchParams({...q,redirect_uri:REDIR});
+  $('#dbxPaste').href=noRed;$('#dbxGo').href=STANDALONE?noRed:red;$('#dbxGo').target=STANDALONE?'_blank':'_self'}
+$('#dbxKey').addEventListener('input',()=>{LS.set('dbxKey',$('#dbxKey').value.trim());prepAuth()});
+function authClick(e,code){const k=$('#dbxKey').value.trim();if(!k||!e.currentTarget.href.includes('client_id=')){e.preventDefault();if(k)prepAuth();return toast(k?'נסה שוב':'הדבק את ה-App key')}
+  if(code){$('#dbxCodeBox').hidden=false;$('#dbxCode').value='';toast('אשר בדרופבוקס, העתק את הקוד וחזור לכאן')}}
+$('#dbxGo').onclick=e=>authClick(e,STANDALONE);$('#dbxPaste').onclick=e=>authClick(e,true);
+$('#dbxCodeGo').onclick=async()=>{const c=$('#dbxCode').value.trim();if(!c)return toast('הדבק את הקוד');try{await dbxExchange(c,false);$('#dbxCodeBox').hidden=true;toast('מחובר לדרופבוקס');markAllDirty();sync()}catch(e){toast('החיבור נכשל: '+e.message)}};
 $('#dbxNow').onclick=()=>{markAllDirty();sync()};
 $('#dbxOff').onclick=()=>arm($('#dbxOff'),'לחץ שוב לניתוק',()=>{['dbxRefresh','dbxAccess','dbxExp'].forEach(k=>LS.set(k,''));syncUi()});
 async function markAllDirty(){for(const p of await all('projects'))if((await byIdx('records','pid',p.id)).length)dirty.add(p.id);LS.set('dbxDirty',JSON.stringify([...dirty]))}
