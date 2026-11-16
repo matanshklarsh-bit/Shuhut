@@ -185,7 +185,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
         <input id="dbxKey" placeholder="App key" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="App key של דרופבוקס">
         <a class="b2 pri" id="dbxGo" href="#" target="_blank" rel="noopener">התחבר לדרופבוקס</a>
         <a class="lk" id="dbxPaste" href="#" target="_blank" rel="noopener">החיבור לא חזר לאפליקציה? התחברות עם קוד</a>
-        <div id="dbxCodeBox" class="row2" hidden><input id="dbxCode" placeholder="הדבק את הקוד מדרופבוקס"><button class="b2" id="dbxCodeGo" style="flex:0 0 80px">אשר</button></div>
+        <div id="dbxCodeLen" class="hint" style="margin:0" hidden></div><div id="dbxCodeBox" class="row2" hidden><input id="dbxCode" dir="ltr" placeholder="הדבק את הקוד מדרופבוקס" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="text-align:left"><button class="b2" id="dbxCodeGo" style="flex:0 0 80px">אשר</button></div>
       </div>
       <div id="dbxOn" class="row2" hidden><button id="dbxNow">סנכרן עכשיו</button><button id="dbxOff">נתק</button></div>
     </div>
@@ -791,7 +791,10 @@ $('#dbxKey').addEventListener('input',()=>LS.set('dbxKey',$('#dbxKey').value.tri
 function authClick(e,code){const a=e.currentTarget,k=$('#dbxKey').value.trim();if(!k){e.preventDefault();return toast('הדבק את ה-App key')}LS.set('dbxKey',k);
   a.href=authUrl(k,!code);a.target=code?'_blank':'_self';if(code){$('#dbxCodeBox').hidden=false;$('#dbxCode').value='';toast('אשר בדרופבוקס, העתק את הקוד וחזור לכאן')}}
 $('#dbxGo').onclick=e=>authClick(e,STANDALONE);$('#dbxPaste').onclick=e=>authClick(e,true);
-$('#dbxCodeGo').onclick=async()=>{const c=$('#dbxCode').value.trim();if(!c)return toast('הדבק את הקוד');try{await dbxExchange(c,false);$('#dbxCodeBox').hidden=true;toast('מחובר לדרופבוקס');markAllDirty();sync()}catch(e){toast('החיבור נכשל');$('#dbxStat').textContent='החיבור נכשל: '+e.message}};
+// keep only the code itself (copying from the Dropbox page can bring a full stop or text along)
+const cleanCode=s=>(s.match(/[A-Za-z0-9_-]{10,}/g)||[]).sort((a,b)=>b.length-a.length)[0]||'';
+$('#dbxCode').addEventListener('input',()=>{const c=cleanCode($('#dbxCode').value),L=$('#dbxCodeLen');L.hidden=!$('#dbxCode').value;L.textContent=c?`זוהה קוד באורך ${c.length} תווים${c.length<40?' – נראה קצר, ייתכן שלא הועתק במלואו':''}`:'לא זוהה קוד'});
+$('#dbxCodeGo').onclick=async()=>{const c=cleanCode($('#dbxCode').value);if(!c)return toast('הדבק את הקוד');try{await dbxExchange(c,false);$('#dbxCodeBox').hidden=true;toast('מחובר לדרופבוקס');markAllDirty();sync()}catch(e){toast('החיבור נכשל');$('#dbxStat').textContent='החיבור נכשל: '+e.message}};
 $('#dbxNow').onclick=()=>{markAllDirty();sync()};
 $('#dbxOff').onclick=()=>arm($('#dbxOff'),'לחץ שוב לניתוק',()=>{['dbxRefresh','dbxAccess','dbxExp'].forEach(k=>LS.set(k,''));syncUi()});
 async function markAllDirty(){for(const p of await all('projects'))if((await byIdx('records','pid',p.id)).length)dirty.add(p.id);LS.set('dbxDirty',JSON.stringify([...dirty]))}
