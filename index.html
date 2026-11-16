@@ -344,7 +344,7 @@ const base=n=>n.replace(/\.[^.]+$/,'').toLowerCase();
 async function needProj4(){if(!window.proj4)await loadScript(PROJ4);proj4.defs('EPSG:2039',ITMDEF)}
 const st=t=>{$('#imp').textContent=t||''};
 async function importDwgBuffer(buf,name){st('טוען את מנוע ה-DWG… (בפעם הראשונה צריך אינטרנט)');
-  const mod=await import(LIBDWG+'dist/libredwg-web.js');await needProj4();const lib=await mod.LibreDwg.create(LIBDWG+'wasm/');st('קורא את '+name+'…');
+  const mod=await import(LIBDWG+'dist/libredwg-web.js');await needProj4();const lib=await mod.LibreDwg.create(LIBDWG+'wasm');st('קורא את '+name+'…');
   const dwg=lib.dwg_read_data(buf,mod.Dwg_File_Type.DWG);if(!dwg)throw new Error('הקובץ לא נקרא');
   const d=lib.convert(dwg);lib.dwg_free(dwg);const p=convertDb(d,name);await put('projects',p);st('');
   toast('נטען: '+p.name+' · '+p.pts.filter(x=>x.k==='mh').length+' שוחות מדודות');await home();openProject(p.id)}
@@ -378,7 +378,7 @@ async function handleFiles(list){try{
   for(const f of list.filter(f=>/\.dwg$/i.test(f.name)))return await importDwgBuffer(await f.blob.arrayBuffer(),f.name);
   const imgs=list.filter(f=>IMG.test(f.name));if(!imgs.length)throw new Error(list.some(f=>WORLD.test(f.name))?'נבחר רק קובץ עיגון – צריך גם את התמונה':'לא נמצא קובץ DWG או תמונה');
   for(const img of imgs)await addImage(img,list.find(w=>WORLD.test(w.name)&&base(w.name)===base(img.name)))}
-  catch(err){console.error(err);st('שגיאה: '+(err.message||err))}}
+  catch(err){console.error(err);const m=String(err.message||err);st(/wasm|fetch|Failed to load|import/i.test(m)?'שגיאה: מנוע קריאת ה-DWG לא נטען. ודא שיש אינטרנט ונסה שוב. ('+m.slice(0,80)+')':'שגיאה: '+m)}}
 $('#dwgIn').addEventListener('change',async e=>{const fs=[...e.target.files].map(f=>({name:f.name,blob:f}));e.target.value='';if(fs.length)handleFiles(fs)});
 // Dropbox shared links
 async function dbxLinkFile(url,path,retry=true){const t=await dbxToken();const r=await fetch('https://content.dropboxapi.com/2/sharing/get_shared_link_file',{method:'POST',headers:{Authorization:'Bearer '+t,'Dropbox-API-Arg':hdr(path?{url,path}:{url})}});
