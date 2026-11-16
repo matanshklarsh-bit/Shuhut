@@ -162,7 +162,7 @@ header h1 small{display:block;font-size:12px;font-weight:500;color:var(--mute)}
 #linkIn{width:100%;font:16px Heebo,sans-serif;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);direction:ltr}
 .brw{background:#fff4d6;color:#6b4a00;border-bottom:1px solid #f0d58a;padding:8px 12px;font-size:14px;font-weight:600;display:flex;gap:8px;align-items:center;z-index:5}
 .brw span{flex:1}.brw button{border:0;background:none;font-size:20px;color:#6b4a00;width:36px;height:36px;cursor:pointer}
-#toast{position:fixed;left:50%;top:calc(var(--st) + 70px);transform:translate(-50%,-10px);opacity:0;background:var(--ink);color:#fff;padding:9px 16px;border-radius:12px;font-size:15px;z-index:60;transition:.2s;pointer-events:none;white-space:nowrap}
+#toast{position:fixed;left:50%;top:calc(var(--st) + 70px);transform:translate(-50%,-10px);opacity:0;background:var(--ink);color:#fff;padding:9px 16px;border-radius:12px;font-size:15px;z-index:60;transition:.2s;pointer-events:none;max-width:92vw;text-align:center}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 .maplibregl-ctrl-scale{font:12px Heebo;background:rgba(255,255,255,.85)!important}
@@ -726,7 +726,7 @@ async function dbxAuthUrl(withRedirect){const v=b64u(crypto.getRandomValues(new 
 function saveTok(j){if(j.refresh_token)LS.set('dbxRefresh',j.refresh_token);LS.set('dbxAccess',j.access_token);LS.set('dbxExp',String(Date.now()+(j.expires_in||14400)*1000))}
 async function dbxExchange(code,withRedirect){const q={code:code.trim(),grant_type:'authorization_code',code_verifier:LS.get('dbxVer')||'',client_id:DBX.key()};if(withRedirect)q.redirect_uri=REDIR;
   const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',body:new URLSearchParams(q)});const j=await r.json().catch(()=>({}));
-  if(!r.ok||!j.refresh_token)throw new Error(/invalid_grant|code/.test((j.error||'')+(j.error_description||''))?'הקוד לא תקף (כבר נוצל או פג תוקף) – בקש קוד חדש':j.error==='invalid_client'?'ה-App key לא נכון':(j.error_description||j.error||'החיבור נכשל'));saveTok(j);LS.set('dbxVer','')}
+  if(!r.ok||!j.refresh_token)throw new Error((j.error==='invalid_client'?'ה-App key לא נכון':j.error==='invalid_grant'?'דרופבוקס דחה את הקוד':'החיבור נכשל')+` [${r.status} ${j.error||''}: ${j.error_description||''}]`);saveTok(j);LS.set('dbxVer','')}
 async function dbxToken(force){if(!DBX.refresh())throw new Error('nolink');if(!force&&+LS.get('dbxExp')>Date.now()+60000)return LS.get('dbxAccess');
   const r=await fetch('https://api.dropboxapi.com/oauth2/token',{method:'POST',body:new URLSearchParams({grant_type:'refresh_token',refresh_token:DBX.refresh(),client_id:DBX.key()})});const j=await r.json().catch(()=>({}));
   if(!r.ok){if(j.error==='invalid_grant'){LS.set('dbxRefresh','');syncUi()}throw new Error(j.error||'token')}saveTok(j);return j.access_token}
@@ -775,16 +775,23 @@ function syncUi(){const on=!!DBX.refresh(),b=$('#bSync');let cls='off',txt;
   b.className=cls;b.title=txt;$('#sBadge').hidden=!pending;$('#sBadge').textContent=pending;
   $('#dbxStat').textContent=on?txt:'לא מחובר – התמונות נשמרות רק בטלפון';if(!on)prepAuth();$('#dbxSetup').hidden=on;$('#dbxOn').hidden=!on;if(!$('#dbxKey').value)$('#dbxKey').value=DBX.key()}
 $('#bSync').onclick=()=>{if(!DBX.refresh()){toast('צריך להתחבר לדרופבוקס (במסך הפרויקטים)');return}toast($('#bSync').title);sync()};
-// The Dropbox link must open straight from the tap (iOS blocks pages opened after an await), so its address is prepared in advance.
-async function prepAuth(){const k=($('#dbxKey').value||DBX.key()).trim();if(!k)return;if(!LS.get('dbxVer')||LS.get('dbxVerKey')!==k){LS.set('dbxVer',b64u(crypto.getRandomValues(new Uint8Array(48))));LS.set('dbxVerKey',k)}
-  const ch=b64u(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(LS.get('dbxVer')))),q={client_id:k,response_type:'code',code_challenge:ch,code_challenge_method:'S256',token_access_type:'offline'};
-  const noRed='https://www.dropbox.com/oauth2/authorize?'+new URLSearchParams(q),red='https://www.dropbox.com/oauth2/authorize?'+new URLSearchParams({...q,redirect_uri:REDIR});
-  $('#dbxPaste').href=noRed;$('#dbxGo').href=STANDALONE?noRed:red;$('#dbxGo').target=STANDALONE?'_blank':'_self'}
-$('#dbxKey').addEventListener('input',()=>{LS.set('dbxKey',$('#dbxKey').value.trim());prepAuth()});
-function authClick(e,code){const k=$('#dbxKey').value.trim();if(!k||!e.currentTarget.href.includes('client_id=')){e.preventDefault();if(k)prepAuth();return toast(k?'נסה שוב':'הדבק את ה-App key')}
-  if(code){$('#dbxCodeBox').hidden=false;$('#dbxCode').value='';toast('אשר בדרופבוקס, העתק את הקוד וחזור לכאן')}}
+// The Dropbox page must open straight from the tap (iOS blocks pages opened after an await), so a fresh
+// verifier and its SHA-256 challenge are made synchronously inside the click, right before the link opens.
+function sha256(bytes){const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  const H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19],l=bytes.length,n=((l+9+63)>>6)<<6,m=new Uint8Array(n);m.set(bytes);m[l]=0x80;const dv=new DataView(m.buffer);dv.setUint32(n-4,l*8);
+  const w=new Uint32Array(64),r=(x,k)=>(x>>>k)|(x<<(32-k));for(let o=0;o<n;o+=64){for(let i=0;i<16;i++)w[i]=dv.getUint32(o+i*4);for(let i=16;i<64;i++){const a=w[i-15],b=w[i-2];w[i]=(w[i-16]+(r(a,7)^r(a,18)^(a>>>3))+w[i-7]+(r(b,17)^r(b,19)^(b>>>10)))>>>0}
+    let[a,b,c,d,e,f,g,h]=H;for(let i=0;i<64;i++){const t1=(h+(r(e,6)^r(e,11)^r(e,25))+((e&f)^(~e&g))+K[i]+w[i])>>>0,t2=((r(a,2)^r(a,13)^r(a,22))+((a&b)^(a&c)^(b&c)))>>>0;h=g;g=f;f=e;e=(d+t1)>>>0;d=c;c=b;b=a;a=(t1+t2)>>>0}
+    H[0]=(H[0]+a)>>>0;H[1]=(H[1]+b)>>>0;H[2]=(H[2]+c)>>>0;H[3]=(H[3]+d)>>>0;H[4]=(H[4]+e)>>>0;H[5]=(H[5]+f)>>>0;H[6]=(H[6]+g)>>>0;H[7]=(H[7]+h)>>>0}
+  const out=new Uint8Array(32);H.forEach((v,i)=>{out[i*4]=v>>>24;out[i*4+1]=(v>>>16)&255;out[i*4+2]=(v>>>8)&255;out[i*4+3]=v&255});return out}
+function authUrl(k,withRedirect){const v=b64u(crypto.getRandomValues(new Uint8Array(48)));LS.set('dbxVer',v);
+  const q={client_id:k,response_type:'code',code_challenge:b64u(sha256(new TextEncoder().encode(v))),code_challenge_method:'S256',token_access_type:'offline'};if(withRedirect)q.redirect_uri=REDIR;
+  return'https://www.dropbox.com/oauth2/authorize?'+new URLSearchParams(q)}
+function prepAuth(){}
+$('#dbxKey').addEventListener('input',()=>LS.set('dbxKey',$('#dbxKey').value.trim()));
+function authClick(e,code){const a=e.currentTarget,k=$('#dbxKey').value.trim();if(!k){e.preventDefault();return toast('הדבק את ה-App key')}LS.set('dbxKey',k);
+  a.href=authUrl(k,!code);a.target=code?'_blank':'_self';if(code){$('#dbxCodeBox').hidden=false;$('#dbxCode').value='';toast('אשר בדרופבוקס, העתק את הקוד וחזור לכאן')}}
 $('#dbxGo').onclick=e=>authClick(e,STANDALONE);$('#dbxPaste').onclick=e=>authClick(e,true);
-$('#dbxCodeGo').onclick=async()=>{const c=$('#dbxCode').value.trim();if(!c)return toast('הדבק את הקוד');try{await dbxExchange(c,false);$('#dbxCodeBox').hidden=true;toast('מחובר לדרופבוקס');markAllDirty();sync()}catch(e){toast('החיבור נכשל: '+e.message)}};
+$('#dbxCodeGo').onclick=async()=>{const c=$('#dbxCode').value.trim();if(!c)return toast('הדבק את הקוד');try{await dbxExchange(c,false);$('#dbxCodeBox').hidden=true;toast('מחובר לדרופבוקס');markAllDirty();sync()}catch(e){toast('החיבור נכשל');$('#dbxStat').textContent='החיבור נכשל: '+e.message}};
 $('#dbxNow').onclick=()=>{markAllDirty();sync()};
 $('#dbxOff').onclick=()=>arm($('#dbxOff'),'לחץ שוב לניתוק',()=>{['dbxRefresh','dbxAccess','dbxExp'].forEach(k=>LS.set(k,''));syncUi()});
 async function markAllDirty(){for(const p of await all('projects'))if((await byIdx('records','pid',p.id)).length)dirty.add(p.id);LS.set('dbxDirty',JSON.stringify([...dirty]))}
