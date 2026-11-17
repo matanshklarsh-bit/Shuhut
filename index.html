@@ -35,7 +35,7 @@ header h1 small{display:block;font-size:12px;font-weight:500;color:var(--mute)}
 .big{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:56px;border:0;border-radius:14px;background:var(--ink);color:#fff;font:700 17px Heebo;cursor:pointer}
 .proj{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:12px;display:flex;gap:12px;align-items:center;cursor:pointer}
 .proj b{font-size:18px;display:block}.proj span{font-size:13px;color:var(--mute)}
-.proj .x{margin-inline-start:auto;font-size:13px;color:var(--mute);border:1px solid var(--line);background:none;border-radius:10px;padding:8px 10px;cursor:pointer;flex:none}
+.proj .x[data-ren]{margin-inline-start:auto}.proj .x{font-size:13px;color:var(--mute);border:1px solid var(--line);background:none;border-radius:10px;padding:8px 10px;cursor:pointer;flex:none}
 .proj .x.arm{background:var(--red);color:#fff;border-color:var(--red)}
 .hint{font-size:13px;color:var(--mute);margin:14px 2px 0}
 #imp{margin-top:12px;font-size:14px;color:var(--blue);min-height:20px}
@@ -271,6 +271,8 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
   <input id="linkIn" placeholder="https://www.dropbox.com/…" autocomplete="off" autocapitalize="off" spellcheck="false"><div class="acts"><button class="pri" id="linkGo">טען</button></div></div></div>
 <div class="sheet" id="fldS" role="dialog" aria-label="קבצים בתיקייה"><h2><span id="fldT">תיקייה</span><button data-close>סגור</button></h2><div class="sbody" id="fldL"></div></div>
 <div class="sheet" id="tgtS" role="dialog" aria-label="לאן לטעון"><h2><span id="tgtT">לאן לטעון?</span><button id="tgtX">ביטול</button></h2><div class="sbody" id="tgtL"></div></div>
+<div class="sheet" id="renS" role="dialog" aria-label="שם הפרויקט"><h2><span>שם הפרויקט</span><button data-close>סגור</button></h2><div class="sbody">
+  <input id="renIn" style="width:100%;font:16px Heebo,sans-serif;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)" autocomplete="off"><div class="acts"><button class="pri" id="renGo">שמור</button></div></div></div>
 <div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -410,9 +412,9 @@ $('#bgList').addEventListener('click',e=>{const b=e.target.closest('[data-del]')
 /* ---------- home ---------- */
 async function home(){dropEmpty();flowFrom=null;screen('home');stopGps();syncUi();const ps=(await all('projects')).sort((a,b)=>b.created-a.created);const recs=await all('records');
   $('#plist').innerHTML=ps.map(p=>{const r=recs.filter(x=>x.pid===p.id);const n=r.reduce((s,x)=>s+(x.n||0),0);
-    return`<div class="proj" data-id="${p.id}"><div><b>${esc(p.name)}</b><span>${r.length} שוחות תועדו · ${n} תמונות</span></div><button class="x" data-del="${p.id}">מחק</button></div>`}).join('')||'<p class="hint">אין עדיין פרויקטים.</p>';
+    return`<div class="proj" data-id="${p.id}"><div><b>${esc(p.name)}</b><span>${r.length} שוחות תועדו · ${n} תמונות</span></div><button class="x" data-ren="${p.id}">שנה שם</button><button class="x" data-del="${p.id}" style="margin-inline-start:6px">מחק</button></div>`}).join('')||'<p class="hint">אין עדיין פרויקטים.</p>';
   try{const e=await navigator.storage.estimate();$('#store').textContent=`נפח בשימוש בטלפון: ${(e.usage/1048576).toFixed(1)} MB`}catch(e){}}
-$('#plist').addEventListener('click',e=>{const d=e.target.closest('[data-del]');if(d){e.stopPropagation();arm(d,'בטוח?',async()=>{const id=d.dataset.del;for(const r of await byIdx('records','pid',id)){for(const ph of await byIdx('photos','rid',r.id))await del('photos',ph.id);await del('records',r.id)}for(const b of await byIdx('bgs','pid',id))await del('bgs',b.id);await del('projects',id);home()});return}
+$('#plist').addEventListener('click',e=>{const rn=e.target.closest('[data-ren]');if(rn){e.stopPropagation();return renameProject(rn.dataset.ren)}const d=e.target.closest('[data-del]');if(d){e.stopPropagation();arm(d,'בטוח?',async()=>{const id=d.dataset.del;for(const r of await byIdx('records','pid',id)){for(const ph of await byIdx('photos','rid',r.id))await del('photos',ph.id);await del('records',r.id)}for(const b of await byIdx('bgs','pid',id))await del('bgs',b.id);await del('projects',id);home()});return}
   const c=e.target.closest('.proj');if(c)openProject(c.dataset.id)});
 
 /* ---------- map ---------- */
@@ -737,6 +739,15 @@ const dbxPut=(path,blob)=>dbxCall('https://content.dropboxapi.com/2/files/upload
 const dbxRpc=(ep,arg)=>dbxCall('https://api.dropboxapi.com/2/'+ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(arg)});
 async function dbxDel(path){if(!path||!DBX.refresh())return;try{await dbxRpc('files/delete_v2',{path})}catch(e){}}
 const safe=s=>String(s).replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,' ').trim();
+async function renameProject(id){const p=await get('projects',id);if(!p)return;$('#renIn').value=p.name;sheet('renS',true);setTimeout(()=>$('#renIn').focus(),250);
+  $('#renGo').onclick=async()=>{const n=$('#renIn').value.trim();if(!n)return toast('הקלד שם');sheet('renS',false);if(n===p.name)return;
+    const q=await get('projects',id);q.name=n;if(q.folder)q.folderTo='/'+safe(n);await put('projects',q);if(P&&P.id===id){P.name=n;$('#pname').firstChild.textContent=n}
+    toast('השם עודכן');home();if(q.folderTo){await markAllDirty();sync()}}}
+// rename the project's Dropbox folder and every stored photo path under it
+async function moveFolders(){for(const p of await all('projects')){if(!p.folderTo||!p.folder)continue;if(p.folderTo===p.folder){delete p.folderTo;await put('projects',p);continue}
+  let to;try{const j=await dbxRpc('files/move_v2',{from_path:p.folder,to_path:p.folderTo,autorename:true});to=j.metadata.path_display}catch(e){if(e.status===409&&/not_found/.test(e.message))to=p.folderTo;else throw e}
+  const from=p.folder.toLowerCase();for(const r of await byIdx('records','pid',p.id))for(const ph of await byIdx('photos','rid',r.id))if(ph.path&&ph.path.toLowerCase().startsWith(from+'/')){ph.path=to+ph.path.slice(from.length);await put('photos',ph)}
+  p.folder=to;delete p.folderTo;await put('projects',p);dirty.add(p.id)}}
 async function projFolder(p){if(!p.folder){p.folder='/'+safe(p.name);await put('projects',p)}return p.folder}
 const dirty=new Set((()=>{try{return JSON.parse(LS.get('dbxDirty')||'[]')}catch(e){return[]}})());
 function markDirty(pid){dirty.add(pid);LS.set('dbxDirty',JSON.stringify([...dirty]));soon()}
@@ -767,6 +778,7 @@ async function sync(){if(syncing||!DBX.refresh())return syncUi();if(!navigator.o
       const res=await dbxUpload(photoPath(await projFolder(p),r,ph),ph.blob);
       ph.path=res.path_display;ph.up=Date.now();delete ph.blob;await put('photos',ph);await del('queue',id);pending--;dirty.add(p.id);syncUi()}
     if(!LS.get('renamed1'))await renameOld();
+    await moveFolders();
     for(const pid of[...dirty]){await writeJson(pid);dirty.delete(pid);LS.set('dbxDirty',JSON.stringify([...dirty]))}}
   catch(e){console.error(e);syncErr=e.message==='nolink'?'':navigator.onLine?'שגיאת סנכרון – ננסה שוב':'אין אינטרנט'}
   finally{syncing=false;LS.set('dbxDirty',JSON.stringify([...dirty]));await countPending()}}
