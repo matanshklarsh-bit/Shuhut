@@ -158,6 +158,7 @@ header h1 small{display:block;font-size:12px;font-weight:500;color:var(--mute)}
 .dbx .lk{background:none;border:0;color:var(--blue);font:500 14px Heebo;text-align:start;padding:4px 0;cursor:pointer}
 .dbx .arm{background:var(--red)!important;color:#fff!important}
 [hidden]{display:none!important}
+#exS .inf button.on{background:var(--ink);border-color:var(--ink);color:#fff}.exck{display:flex;align-items:center;gap:10px;padding:12px 2px 0;font-size:15px}.exck input{width:20px;height:20px;accent-color:var(--blue)}
 .bgr{display:flex;align-items:center;gap:8px;padding:4px 12px;font-size:13px}.bgr span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bgr button{border:1px solid var(--line);background:var(--panel);border-radius:8px;min-height:34px;padding:0 10px;font:600 13px Heebo;cursor:pointer}.bgr button.arm{background:var(--red);color:#fff}
 #linkIn{width:100%;font:16px Heebo,sans-serif;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);direction:ltr}
 .brw{background:#fff4d6;color:#6b4a00;border-bottom:1px solid #f0d58a;padding:8px 12px;font-size:14px;font-weight:600;display:flex;gap:8px;align-items:center;z-index:5}
@@ -209,6 +210,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
       <button id="bGps" aria-label="המיקום שלי"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-linecap="round"/></svg></button>
       <button id="bFit" aria-label="כל הפרויקט"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       <button id="bLay" aria-label="שכבות"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>
+      <button id="bPdf" aria-label="ייצוא PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h4" stroke-linecap="round"/></svg></button>
       <button id="bList" aria-label="שוחות שתועדו"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/></svg><span class="badge" id="cnt" hidden>0</span></button>
     </div>
     <div id="layers">
@@ -273,6 +275,13 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
 <div class="sheet" id="tgtS" role="dialog" aria-label="לאן לטעון"><h2><span id="tgtT">לאן לטעון?</span><button id="tgtX">ביטול</button></h2><div class="sbody" id="tgtL"></div></div>
 <div class="sheet" id="renS" role="dialog" aria-label="שם הפרויקט"><h2><span>שם הפרויקט</span><button data-close>סגור</button></h2><div class="sbody">
   <input id="renIn" style="width:100%;font:16px Heebo,sans-serif;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)" autocomplete="off"><div class="acts"><button class="pri" id="renGo">שמור</button></div></div></div>
+<div class="sheet" id="exS" role="dialog" aria-label="ייצוא PDF"><h2><span>ייצוא סקיצה ל-PDF</span><button data-close>סגור</button></h2><div class="sbody">
+  <div class="sub" style="padding:0 0 6px">גודל דף</div><div class="inf"><button data-sz="A4" class="on">A4</button><button data-sz="A3">A3</button></div>
+  <div class="sub" style="padding:12px 0 6px">תחום</div><div class="inf"><button data-sc="all" class="on">כל מה שתיעדתי</button><button data-sc="view">מה שרואים עכשיו במסך</button></div>
+  <label class="exck"><input type="checkbox" id="exTable" checked>טבלת נתונים (עמודים נוספים)</label>
+  <label class="exck" id="exBgRow"><input type="checkbox" id="exBg" checked>תצלום רקע</label>
+  <div class="acts"><button class="pri" id="exGo">צור PDF</button></div><p class="hint" id="exMsg" style="margin:10px 2px 0"></p>
+  <div class="acts" id="exOut" hidden><button class="pri" id="exShare">שתף / שמור</button><a id="exOpen" class="b2" href="#" target="_blank" rel="noopener" style="flex:1;min-height:52px;border-radius:14px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font:700 16px Heebo;color:var(--ink);text-decoration:none">פתח</a></div></div></div>
 <div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -814,6 +823,102 @@ async function dbxReturn(){const q=new URLSearchParams(location.search);if(!q.ha
   if(q.get('error')){toast('החיבור לדרופבוקס בוטל');return}try{await dbxExchange(q.get('code'),true);toast('מחובר לדרופבוקס ✓');await markAllDirty()}catch(e){toast('החיבור נכשל: '+e.message)}}
 addEventListener('online',()=>sync());document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});setInterval(()=>{if(pending||dirty.size)sync()},60000);
 
+/* ---------- PDF export: a to-scale sketch of what was documented ---------- */
+const JSPDF='https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js';
+const SCALES=[100,200,250,500,1000,1250,2000,2500,5000,10000];
+const itmLL=ll=>A({lng:ll[0],lat:ll[1]});
+function drawSym(g,s,x,y,r,c){g.save();g.lineJoin='round';g.fillStyle=c;g.strokeStyle='#fff';g.lineWidth=r*.35;const P=a=>{g.beginPath();a.forEach(([u,v],i)=>i?g.lineTo(x+u*r,y+v*r):g.moveTo(x+u*r,y+v*r));g.closePath()};
+  const hollow=()=>{g.fillStyle='#fff';g.fill();g.strokeStyle=c;g.lineWidth=r*.45;g.stroke()},solid=()=>{g.fill();g.stroke()};
+  if(s==='sq'||s==='sqo'){g.beginPath();g.rect(x-r*.8,y-r*.8,r*1.6,r*1.6);s==='sq'?solid():hollow()}else if(s==='tri'||s==='trio'){P([[0,-1],[.95,.75],[-.95,.75]]);s==='tri'?solid():hollow()}
+  else if(s==='dia'){P([[0,-1],[1,0],[0,1],[-1,0]]);solid()}else if(s==='rect'){g.beginPath();g.rect(x-r,y-r*.5,r*2,r);solid()}else if(s==='ring'){g.beginPath();g.arc(x,y,r*.75,0,7);hollow()}
+  else{g.beginPath();g.arc(x,y,r*.8,0,7);solid()}g.restore()}
+function exportBox(scope){let xs=[],ys=[];const add=([x,y])=>{xs.push(x);ys.push(y)};
+  if(scope==='view'){const b=map.getBounds();[[b.getWest(),b.getSouth()],[b.getEast(),b.getNorth()]].map(itmLL).forEach(add)}
+  else{for(const r of recs.values()){const t=typ(r);if(t==='line')r.pts.forEach(p=>add(p.xy));else if(t==='flow'){add(r.a.xy);add(r.b.xy)}else add(r.xy)}
+    if(!xs.length)PT.forEach(p=>add([p.x,p.y]));if(!xs.length)P.ref.forEach(r=>add([r.x,r.y]))}
+  const m=scope==='view'?0:12;let x0=Math.min(...xs)-m,x1=Math.max(...xs)+m,y0=Math.min(...ys)-m,y1=Math.max(...ys)+m;
+  if(x1-x0<40){const c=(x0+x1)/2;x0=c-20;x1=c+20}if(y1-y0<40){const c=(y0+y1)/2;y0=c-20;y1=c+20}return{x0,x1,y0,y1}}
+async function sketchCanvas(o){const page=o.size==='A3'?[420,297]:[297,210],k=(o.size==='A3'?170:200)/25.4,W=Math.round(page[0]*k),H=Math.round(page[1]*k),mm=v=>v*k;
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);
+  const side=64,M=10,dw=page[0]-2*M-side-4,dh=page[1]-2*M,dx=mm(M+side+4),dy=mm(M);// drawing frame on the right, legend panel on the left
+  const bx=exportBox(o.scope),need=Math.max((bx.x1-bx.x0)/(dw/1000),(bx.y1-bx.y0)/(dh/1000)),scale=SCALES.find(s=>s>=need)||Math.ceil(need/1000)*1000,mpm=scale/1000;
+  const cxm=(bx.x0+bx.x1)/2,cym=(bx.y0+bx.y1)/2,X=x=>dx+mm(dw)/2+(x-cxm)/mpm*k,Y=y=>dy+mm(dh)/2-(y-cym)/mpm*k,XY=([x,y])=>[X(x),Y(y)];
+  g.save();g.beginPath();g.rect(dx,dy,mm(dw),mm(dh));g.clip();
+  // background photo
+  if(o.bg)for(const b of await byIdx('bgs','pid',P.id))for(const t of b.tiles){const im=await createImageBitmap(t.blob),[tl,tr,,bl]=t.corners.map(c=>XY(itmLL(c)));
+    g.save();g.globalAlpha=.55;g.setTransform((tr[0]-tl[0])/im.width,(tr[1]-tl[1])/im.width,(bl[0]-tl[0])/im.height,(bl[1]-tl[1])/im.height,tl[0],tl[1]);g.drawImage(im,0,0);g.restore()}
+  // survey drawing
+  g.lineCap='round';g.lineJoin='round';
+  for(const l of P.lines){const c=l.c.map(itmLL).map(XY);g.beginPath();c.forEach(([u,v],i)=>i?g.lineTo(u,v):g.moveTo(u,v));const strong=/^M2[24]/.test(l.l||'');g.strokeStyle=strong?'#55595e':'#a9adb2';g.lineWidth=mm(strong?.3:.18);g.stroke()}
+  for(const p of PT){const[u,v]=XY([p.x,p.y]);if(p.k==='sign'||p.k==='pole'){g.fillStyle='#8a96a3';g.beginPath();g.arc(u,v,mm(.45),0,7);g.fill()}
+    if((p.k==='mh'||p.k==='mhtxt')&&!recByPt.has(p.id)){g.strokeStyle=p.k==='mh'?'#d1261b':'#ec7a00';g.fillStyle='#fff';g.lineWidth=mm(.3);g.beginPath();g.arc(u,v,mm(.9),0,7);g.fill();g.stroke()}}
+  // documented items
+  const R=[...recs.values()];
+  for(const r of R.filter(r=>typ(r)==='line'&&r.pts.length>1)){const c=r.pts.map(p=>XY(p.xy)),col=colOf(r);g.beginPath();c.forEach(([u,v],i)=>i?g.lineTo(u,v):g.moveTo(u,v));
+    if(r.el==='רצועה'){g.save();g.globalAlpha=.25;g.strokeStyle=col;g.lineWidth=mm(2.2);g.stroke();g.restore()}g.strokeStyle=col;g.lineWidth=mm(.55);g.stroke()}
+  for(const r of R.filter(r=>typ(r)==='line'))for(const p of r.pts){const[u,v]=XY(p.xy),single=r.pts.length===1;g.fillStyle=single?colOf(r):'#fff';g.strokeStyle=single?'#fff':colOf(r);g.lineWidth=mm(.25);g.beginPath();g.arc(u,v,mm(single?.9:.5),0,7);g.fill();g.stroke()}
+  for(const r of R.filter(r=>typ(r)==='flow')){const[a,b]=[XY(r.a.xy),XY(r.b.xy)],col=colOf(r);g.strokeStyle=col;g.lineWidth=mm(.45);g.beginPath();g.moveTo(...a);g.lineTo(...b);g.stroke();
+    const ang=Math.atan2(b[1]-a[1],b[0]-a[0]),mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,s=mm(1.6);g.save();g.translate(mx,my);g.rotate(ang);g.fillStyle=col;g.beginPath();g.moveTo(s,0);g.lineTo(-s*.8,-s*.7);g.lineTo(-s*.4,0);g.lineTo(-s*.8,s*.7);g.closePath();g.fill();g.restore()}
+  for(const r of R.filter(r=>typ(r)==='el')){const[u,v]=XY(r.xy);drawSym(g,SHAPE[r.el]||'dot',u,v,mm(1.3),colOf(r))}
+  for(const r of R.filter(r=>typ(r)==='mh')){const[u,v]=XY(r.xy);g.fillStyle=colOf(r);g.strokeStyle='#fff';g.lineWidth=mm(.35);g.beginPath();g.arc(u,v,mm(1.2),0,7);g.fill();g.stroke()}
+  // labels (documented first, so they win the space)
+  g.textBaseline='middle';g.textAlign='center';g.direction='rtl';const boxes=[];
+  const put=(xy,text,size,w,col,dyMm)=>{if(text==null||text==='')return;const[u,v0]=XY(xy),v=v0+mm(dyMm);g.font=`${w} ${mm(size)}px Heebo,Arial,sans-serif`;const tw=g.measureText(text).width,b=[u-tw/2-2,v-mm(size)/2,tw+4,mm(size)];
+    if(u<dx||u>dx+mm(dw)||v<dy||v>dy+mm(dh))return;if(boxes.some(q=>b[0]<q[0]+q[2]&&q[0]<b[0]+b[2]&&b[1]<q[1]+q[3]&&q[1]<b[1]+b[3]))return;boxes.push(b);
+    g.lineJoin='round';g.strokeStyle='#fff';g.lineWidth=mm(.6);g.strokeText(text,u,v);g.fillStyle=col;g.fillText(text,u,v)};
+  for(const r of R.filter(r=>typ(r)==='mh')){const pt=r.pt!=null?P.pts[r.pt]:null;put(r.xy,pt&&pt.name?pt.name:r.name.replace(/^ת\.ב\. /,''),2.3,800,colOf(r),-2.4)}
+  for(const r of R.filter(r=>typ(r)==='el'))put(r.xy,r.el,2,700,colOf(r),-2.4);
+  for(const r of R.filter(r=>typ(r)==='line'))r.pts.forEach(p=>{if(p.d!=null)put(p.xy,Number(p.d).toFixed(2),1.9,700,colOf(r),2.1)});
+  for(const p of PT)if(p.k==='mh'&&!recByPt.has(p.id))put([p.x,p.y],p.name,1.9,700,'#d1261b',-2.1);
+  if(scale<=500)for(const p of PT)if(p.k==='lbl'&&p.name)put([p.x,p.y],p.name,1.7,500,'#7b8187',0);
+  g.restore();
+  // frame, north arrow, scale bar
+  g.strokeStyle='#16191c';g.lineWidth=mm(.35);g.strokeRect(dx,dy,mm(dw),mm(dh));
+  const nx=dx+mm(10),ny=dy+mm(12);g.fillStyle='#fff';g.beginPath();g.arc(nx,ny,mm(6),0,7);g.fill();g.fillStyle='#16191c';g.beginPath();g.moveTo(nx,ny-mm(5));g.lineTo(nx+mm(2.6),ny+mm(3));g.lineTo(nx,ny+mm(1.6));g.lineTo(nx-mm(2.6),ny+mm(3));g.closePath();g.fill();
+  g.font=`800 ${mm(3)}px Heebo,Arial,sans-serif`;g.textAlign='center';g.fillText('N',nx,ny+mm(6.3));
+  const barM=[1,2,5,10,20,25,50,100,200,500,1000].reverse().find(v=>v/mpm<=45)||1,bl=barM/mpm*k,sx=dx+mm(6),sy=dy+mm(dh)-mm(7);
+  g.fillStyle='#fff';g.fillRect(sx-mm(2),sy-mm(4.5),bl+mm(14),mm(8));g.fillStyle='#16191c';g.fillRect(sx,sy,bl/2,mm(1.2));g.strokeRect(sx,sy,bl,mm(1.2));
+  g.font=`600 ${mm(2.4)}px Heebo,Arial,sans-serif`;g.textAlign='left';g.fillText('0',sx-mm(.6),sy-mm(2));g.fillText(barM+' מ׳',sx+bl-mm(1),sy-mm(2));
+  // legend panel (left)
+  const lx=mm(M),lw=mm(side);let ly=mm(M);g.textAlign='right';g.direction='rtl';const rx=lx+lw-mm(2);
+  const txt=(t,size,w,col,dyMm=0)=>{g.font=`${w} ${mm(size)}px Heebo,Arial,sans-serif`;g.fillStyle=col||'#16191c';g.fillText(t,rx,ly+mm(dyMm))};
+  g.strokeStyle='#16191c';g.lineWidth=mm(.35);g.strokeRect(lx,mm(M),lw,mm(dh));ly+=mm(7);txt(P.name,4.6,800);ly+=mm(6);
+  txt(new Date().toLocaleDateString('he-IL'),2.8,500,'#555');ly+=mm(5);txt(`קנה מידה 1:${scale} (${o.size})`,2.8,700);ly+=mm(5);txt('רשת ישראל החדשה (ITM)',2.4,500,'#555');ly+=mm(8);
+  txt('מקרא',3.2,800);ly+=mm(5);
+  const used=new Map();for(const r of R)if(r.infra){const k=r.infra;if(!used.has(k))used.set(k,new Set());used.get(k).add(typ(r)==='el'?r.el:typ(r)==='mh'?'שוחה':typ(r)==='flow'?'כיוון זרימה':r.el)}
+  for(const[k,set]of used){const c=IC[k][2];g.fillStyle=c;g.beginPath();g.arc(rx-mm(1.5),ly-mm(.3),mm(1.4),0,7);g.fill();g.save();g.translate(-mm(5),0);txt(`${IC[k][1]}: ${[...set].join(', ')}`,2.4,600,'#16191c');g.restore();ly+=mm(4.6)}
+  ly+=mm(2);const sym=(s,label,draw)=>{draw(rx-mm(1.5),ly-mm(.3));g.save();g.translate(-mm(5),0);txt(label,2.3,500,'#333');g.restore();ly+=mm(4.4)};
+  sym('','שוחה מדודה שלא תועדה',(u,v)=>{g.strokeStyle='#d1261b';g.fillStyle='#fff';g.lineWidth=mm(.3);g.beginPath();g.arc(u,v,mm(.9),0,7);g.fill();g.stroke()});
+  sym('','שוחה שתועדה (בצבע התשתית)',(u,v)=>{g.fillStyle='#777';g.beginPath();g.arc(u,v,mm(1.2),0,7);g.fill()});
+  sym('','ארון',(u,v)=>drawSym(g,'sq',u,v,mm(1),'#777'));sym('','עמוד (ע.ח / ע.ת / ע.ט / רמזור)',(u,v)=>drawSym(g,'tri',u,v,mm(1),'#777'));sym('','שיבר / שסתום',(u,v)=>drawSym(g,'dia',u,v,mm(1),'#777'));
+  sym('','קו (עומק בנקודות, מ׳)',(u,v)=>{g.strokeStyle='#777';g.lineWidth=mm(.55);g.beginPath();g.moveTo(u-mm(3),v);g.lineTo(u+mm(1),v);g.stroke()});
+  sym('','כיוון זרימה',(u,v)=>{g.fillStyle='#777';g.beginPath();g.moveTo(u-mm(3),v);g.lineTo(u,v-mm(1.2));g.lineTo(u,v+mm(1.2));g.closePath();g.fill()});
+  const c={mh:0,el:0,line:0,flow:0};R.forEach(r=>c[typ(r)]++);ly=mm(M+dh-14);txt(`תועדו: ${c.mh} שוחות · ${c.el} אלמנטים · ${c.line} קווים · ${c.flow} זרימות`,2.3,500,'#555');ly+=mm(5);txt('הופק באפליקציית שוחות',2.1,500,'#888');
+  return{cv,page,scale}}
+function tablePages(page,k){const R=[...recs.values()].sort((a,b)=>(a.seq||0)-(b.seq||0)),mm=v=>v*k,W=Math.round(page[0]*k),H=Math.round(page[1]*k),rowH=7,top=24,per=Math.floor((page[1]-top-12)/rowH),out=[];
+  const cols=[['#',10],['שם',70],['סוג',24],['תשתית',30],['Y',28],['X',28],['פרטים',0]];const fixed=cols.reduce((s,c)=>s+c[1],0);cols[6][1]=page[0]-20-fixed;
+  for(let i=0;i<R.length||i===0;i+=per){const cv=document.createElement('canvas');cv.width=W;cv.height=H;const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,W,H);g.direction='rtl';g.textBaseline='middle';
+    g.textAlign='right';g.fillStyle='#16191c';g.font=`800 ${mm(5)}px Heebo,Arial,sans-serif`;g.fillText(`${P.name} – טבלת נתונים`,mm(page[0]-10),mm(12));
+    let x=mm(page[0]-10);const row=(vals,y,bold,bgc)=>{if(bgc){g.fillStyle=bgc;g.fillRect(mm(10),mm(y-rowH/2),mm(page[0]-20),mm(rowH))}let xx=x;vals.forEach((v,j)=>{g.fillStyle='#16191c';g.font=`${bold?800:500} ${mm(2.7)}px Heebo,Arial,sans-serif`;g.save();g.beginPath();g.rect(xx-mm(cols[j][1]),mm(y-rowH/2),mm(cols[j][1]),mm(rowH));g.clip();g.fillText(String(v??''),xx-mm(1.5),mm(y));g.restore();xx-=mm(cols[j][1])})};
+    row(cols.map(c=>c[0]),top,true,'#eceae4');R.slice(i,i+per).forEach((r,j)=>{const t=typ(r),xy=t==='line'?r.pts[0].xy:t==='flow'?r.a.xy:r.xy;
+      const det=t==='line'?(r.pts.length===1?'נקודה בודדת':`${r.pts.length} נק׳ · ${lineLen(r).toFixed(1)} מ׳`)+(r.pts.some(p=>p.d!=null)?' · עומקים: '+r.pts.map(p=>p.d!=null?Number(p.d).toFixed(2):'–').join(', '):''):t==='flow'?`מ־${r.a.name} אל ${r.b.name}`:t==='mh'?`${r.n||0} תמונות`:(r.on?'על '+r.on:'');
+      row([r.seq||'',r.name,t==='el'?r.el:TYPEN[t],r.infra?IC[r.infra][1]:'',xy[1].toFixed(2),xy[0].toFixed(2),det],top+rowH*(j+1),false,j%2?'#f7f6f2':null)});
+    g.textAlign='left';g.fillStyle='#888';g.font=`500 ${mm(2.4)}px Heebo,Arial,sans-serif`;g.fillText(`עמוד ${out.length+2}`,mm(10),mm(page[1]-6));out.push(cv);if(!R.length)break}return out}
+let pdfFile=null;
+async function makePdf(){const o={size:$('#exS .on[data-sz]')?.dataset.sz||'A4',scope:$('#exS .on[data-sc]')?.dataset.sc||'all',table:$('#exTable').checked,bg:$('#exBg').checked};
+  $('#exGo').disabled=true;$('#exMsg').textContent='מכין את הסקיצה…';$('#exOut').hidden=true;
+  try{if(!window.jspdf)await loadScript(JSPDF);if(document.fonts)await document.fonts.ready;const{cv,page,scale}=await sketchCanvas(o);
+    const doc=new jspdf.jsPDF({orientation:'landscape',unit:'mm',format:o.size.toLowerCase(),compress:true});doc.addImage(cv.toDataURL('image/jpeg',.88),'JPEG',0,0,page[0],page[1]);
+    if(o.table){const k=(o.size==='A3'?170:200)/25.4;for(const t of tablePages(page,k)){doc.addPage();doc.addImage(t.toDataURL('image/jpeg',.88),'JPEG',0,0,page[0],page[1])}}
+    const d=new Date(),stamp=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`,name=`${safe(P.name)} – סקיצה ${stamp}.pdf`;
+    const blob=doc.output('blob');pdfFile=new File([blob],name,{type:'application/pdf'});$('#exOpen').href=URL.createObjectURL(blob);
+    $('#exMsg').textContent=`מוכן: קנה מידה 1:${scale} · ${(blob.size/1048576).toFixed(1)} MB`;$('#exOut').hidden=false;
+    if(DBX.refresh()){try{const p=await get('projects',P.id);await dbxPut(`${await projFolder(p)}/${name}`,blob);$('#exMsg').textContent+=' · נשמר גם בדרופבוקס'}catch(e){$('#exMsg').textContent+=' · השמירה בדרופבוקס נכשלה'}}}
+  catch(e){console.error(e);$('#exMsg').textContent='שגיאה: '+(e.message||e)}finally{$('#exGo').disabled=false}}
+$('#bPdf').onclick=async()=>{$('#exBgRow').hidden=!(await byIdx('bgs','pid',P.id)).length;$('#exMsg').textContent='';$('#exOut').hidden=true;sheet('exS',true)};
+$('#exS').addEventListener('click',e=>{const b=e.target.closest('[data-sz],[data-sc]');if(!b)return;const a=b.dataset.sz?'[data-sz]':'[data-sc]';$('#exS').querySelectorAll(a).forEach(x=>x.classList.toggle('on',x===b))});
+$('#exGo').onclick=makePdf;
+$('#exShare').onclick=async()=>{if(!pdfFile)return;try{if(navigator.canShare&&navigator.canShare({files:[pdfFile]}))await navigator.share({files:[pdfFile],title:pdfFile.name});else $('#exOpen').click()}catch(e){if(e.name!=='AbortError')$('#exOpen').click()}};
 /* ---------- running in a browser instead of the home-screen app ---------- */
 const STANDALONE=navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
 if(!STANDALONE&&/iPhone|iPad|Android/i.test(navigator.userAgent)){const br=/CriOS/.test(navigator.userAgent)?'בכרום':/FxiOS/.test(navigator.userAgent)?'בפיירפוקס':'בספארי';
