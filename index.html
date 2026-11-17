@@ -158,7 +158,7 @@ header h1 small{display:block;font-size:12px;font-weight:500;color:var(--mute)}
 .dbx .lk{background:none;border:0;color:var(--blue);font:500 14px Heebo;text-align:start;padding:4px 0;cursor:pointer}
 .dbx .arm{background:var(--red)!important;color:#fff!important}
 [hidden]{display:none!important}
-#exS .inf button.on{background:var(--ink);border-color:var(--ink);color:#fff}.exck{display:flex;align-items:center;gap:10px;padding:12px 2px 0;font-size:15px}.exck input{width:20px;height:20px;accent-color:var(--blue)}
+#exS .inf button{flex:1;justify-content:center}#exS .inf button.on{background:var(--ink);border-color:var(--ink);color:#fff}.exck{display:flex;align-items:center;gap:10px;padding:12px 2px 0;font-size:15px}.exck input{width:20px;height:20px;accent-color:var(--blue)}
 .bgr{display:flex;align-items:center;gap:8px;padding:4px 12px;font-size:13px}.bgr span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bgr button{border:1px solid var(--line);background:var(--panel);border-radius:8px;min-height:34px;padding:0 10px;font:600 13px Heebo;cursor:pointer}.bgr button.arm{background:var(--red);color:#fff}
 #linkIn{width:100%;font:16px Heebo,sans-serif;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);direction:ltr}
 .brw{background:#fff4d6;color:#6b4a00;border-bottom:1px solid #f0d58a;padding:8px 12px;font-size:14px;font-weight:600;display:flex;gap:8px;align-items:center;z-index:5}
@@ -210,7 +210,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
       <button id="bGps" aria-label="המיקום שלי"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-linecap="round"/></svg></button>
       <button id="bFit" aria-label="כל הפרויקט"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       <button id="bLay" aria-label="שכבות"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>
-      <button id="bPdf" aria-label="ייצוא PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h4" stroke-linecap="round"/></svg></button>
+      <button id="bPdf" aria-label="ייצוא PDF או DXF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 13h6M9 17h4" stroke-linecap="round"/></svg></button>
       <button id="bList" aria-label="שוחות שתועדו"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor"/></svg><span class="badge" id="cnt" hidden>0</span></button>
     </div>
     <div id="layers">
@@ -275,11 +275,14 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
 <div class="sheet" id="tgtS" role="dialog" aria-label="לאן לטעון"><h2><span id="tgtT">לאן לטעון?</span><button id="tgtX">ביטול</button></h2><div class="sbody" id="tgtL"></div></div>
 <div class="sheet" id="renS" role="dialog" aria-label="שם הפרויקט"><h2><span>שם הפרויקט</span><button data-close>סגור</button></h2><div class="sbody">
   <input id="renIn" style="width:100%;font:16px Heebo,sans-serif;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)" autocomplete="off"><div class="acts"><button class="pri" id="renGo">שמור</button></div></div></div>
-<div class="sheet" id="exS" role="dialog" aria-label="ייצוא PDF"><h2><span>ייצוא סקיצה ל-PDF</span><button data-close>סגור</button></h2><div class="sbody">
-  <div class="sub" style="padding:0 0 6px">גודל דף</div><div class="inf"><button data-sz="A4" class="on">A4</button><button data-sz="A3">A3</button></div>
+<div class="sheet" id="exS" role="dialog" aria-label="ייצוא PDF"><h2><span>ייצוא</span><button data-close>סגור</button></h2><div class="sbody">
+  <div class="inf" id="exFmt"><button data-fm="pdf" class="on">PDF – סקיצה</button><button data-fm="dxf">DXF – לאוטוקאד</button></div>
+  <div id="exPdfOpts"><div class="sub" style="padding:12px 0 6px">גודל דף</div><div class="inf"><button data-sz="A4" class="on">A4</button><button data-sz="A3">A3</button></div>
   <div class="sub" style="padding:12px 0 6px">תחום</div><div class="inf"><button data-sc="all" class="on">כל מה שתיעדתי</button><button data-sc="view">מה שרואים עכשיו במסך</button></div>
   <label class="exck"><input type="checkbox" id="exTable" checked>טבלת נתונים (עמודים נוספים)</label>
-  <label class="exck" id="exBgRow"><input type="checkbox" id="exBg" checked>תצלום רקע</label>
+  <label class="exck" id="exBgRow"><input type="checkbox" id="exBg" checked>תצלום רקע</label></div>
+  <div id="exDxfOpts" hidden><div class="sub" style="padding:12px 0 6px">גובה טקסט בשרטוט</div><div class="inf"><button data-th="0.25">0.25 מ׳</button><button data-th="0.4" class="on">0.4 מ׳</button><button data-th="0.8">0.8 מ׳</button></div>
+  <p class="hint" style="margin:10px 2px 0">בנ״צ ישראל – נכנס ישירות על ה-DWG של המודד. שכבה לכל תשתית (SH_SEWER, SH_ELEC…), עומקים בשכבה SH_DEPTH, ומספר רץ (#001) שמתאים לשמות התמונות בשכבה SH_ID.</p></div>
   <div class="acts"><button class="pri" id="exGo">צור PDF</button></div><p class="hint" id="exMsg" style="margin:10px 2px 0"></p>
   <div class="acts" id="exOut" hidden><button class="pri" id="exShare">שתף / שמור</button><a id="exOpen" class="b2" href="#" target="_blank" rel="noopener" style="flex:1;min-height:52px;border-radius:14px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font:700 16px Heebo;color:var(--ink);text-decoration:none">פתח</a></div></div></div>
 <div id="toast"></div>
@@ -911,14 +914,55 @@ async function makePdf(){const o={size:$('#exS .on[data-sz]')?.dataset.sz||'A4',
     const doc=new jspdf.jsPDF({orientation:'landscape',unit:'mm',format:o.size.toLowerCase(),compress:true});doc.addImage(cv.toDataURL('image/jpeg',.88),'JPEG',0,0,page[0],page[1]);
     if(o.table){const k=(o.size==='A3'?170:200)/25.4;for(const t of tablePages(page,k)){doc.addPage();doc.addImage(t.toDataURL('image/jpeg',.88),'JPEG',0,0,page[0],page[1])}}
     const d=new Date(),stamp=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`,name=`${safe(P.name)} – סקיצה ${stamp}.pdf`;
-    const blob=doc.output('blob');pdfFile=new File([blob],name,{type:'application/pdf'});$('#exOpen').href=URL.createObjectURL(blob);
+    const blob=doc.output('blob');pdfFile=new File([blob],name,{type:'application/pdf'});$('#exOpen').href=URL.createObjectURL(blob);$('#exOpen').removeAttribute('download');
     $('#exMsg').textContent=`מוכן: קנה מידה 1:${scale} · ${(blob.size/1048576).toFixed(1)} MB`;$('#exOut').hidden=false;
     if(DBX.refresh()){try{const p=await get('projects',P.id);await dbxPut(`${await projFolder(p)}/${name}`,blob);$('#exMsg').textContent+=' · נשמר גם בדרופבוקס'}catch(e){$('#exMsg').textContent+=' · השמירה בדרופבוקס נכשלה'}}}
   catch(e){console.error(e);$('#exMsg').textContent='שגיאה: '+(e.message||e)}finally{$('#exGo').disabled=false}}
 $('#bPdf').onclick=async()=>{$('#exBgRow').hidden=!(await byIdx('bgs','pid',P.id)).length;$('#exMsg').textContent='';$('#exOut').hidden=true;sheet('exS',true)};
-$('#exS').addEventListener('click',e=>{const b=e.target.closest('[data-sz],[data-sc]');if(!b)return;const a=b.dataset.sz?'[data-sz]':'[data-sc]';$('#exS').querySelectorAll(a).forEach(x=>x.classList.toggle('on',x===b))});
-$('#exGo').onclick=makePdf;
+$('#exS').addEventListener('click',e=>{const b=e.target.closest('[data-sz],[data-sc],[data-th],[data-fm]');if(!b)return;const a=b.dataset.sz?'[data-sz]':b.dataset.sc?'[data-sc]':b.dataset.th?'[data-th]':'[data-fm]';
+  if(b.dataset.fm){const dx=b.dataset.fm==='dxf';$('#exPdfOpts').hidden=dx;$('#exDxfOpts').hidden=!dx;$('#exGo').textContent=dx?'צור DXF':'צור PDF';$('#exOut').hidden=true;$('#exMsg').textContent=''}$('#exS').querySelectorAll(a).forEach(x=>x.classList.toggle('on',x===b))});
+$('#exGo').onclick=()=>($('#exS [data-fm].on').dataset.fm==='dxf'?makeDxf:makePdf)();
 $('#exShare').onclick=async()=>{if(!pdfFile)return;try{if(navigator.canShare&&navigator.canShare({files:[pdfFile]}))await navigator.share({files:[pdfFile],title:pdfFile.name});else $('#exOpen').click()}catch(e){if(e.name!=='AbortError')$('#exOpen').click()}};
+/* ---------- DXF export (R12, ITM coordinates – overlays directly on the surveyor's DWG) ---------- */
+const ACI={sewer:32,drain:140,water:5,bezeq:3,hot:30,cellcom:200,partner:130,unlimited:230,light:40,elec:1,hv:14,gas:2,comm:8,traffic:6,citycomm:90,irrig:94,other:9};
+// AutoCAD draws text left-to-right, so Hebrew is stored in visual order (numbers/latin keep their direction)
+const visual=s=>{s=String(s??'');if(!/[֐-׿]/.test(s))return s;let r=[...s].reverse().join('');r=r.replace(/[0-9A-Za-z.]*[0-9A-Za-z][0-9A-Za-z.]*/g,m=>[...m].reverse().join(''));return r.replace(/[()]/g,c=>c=='('?')':'(')};
+const dxfStr=s=>visual(s).replace(/[^\x20-\x7e]/g,c=>'\\U+'+c.charCodeAt(0).toString(16).toUpperCase().padStart(4,'0'));
+function buildDxf(th){const R=[...recs.values()],o=[],layers=new Map(),n=v=>(+v).toFixed(3);
+  const L=(name,color)=>{if(!layers.has(name))layers.set(name,color);return name},lay=(r,suf='')=>L('SH_'+(r.infra||'unknown').toUpperCase()+suf,r.infra?ACI[r.infra]:7);
+  const e=(...kv)=>{for(let i=0;i<kv.length;i+=2)o.push(kv[i],kv[i+1])};
+  const text=(ly,[x,y],s,h,dy=0)=>{if(s==null||s==='')return;e(0,'TEXT',8,ly,10,n(x),20,n(y+dy),30,0,40,n(h),1,dxfStr(s),72,1,73,2,11,n(x),21,n(y+dy),31,0)};
+  const circle=(ly,[x,y],r)=>e(0,'CIRCLE',8,ly,10,n(x),20,n(y),30,0,40,n(r));
+  const pline=(ly,pts,closed,w)=>{e(0,'POLYLINE',8,ly,66,1,10,0,20,0,30,0,70,closed?1:0);if(w)e(40,n(w),41,n(w));for(const[x,y]of pts)e(0,'VERTEX',8,ly,10,n(x),20,n(y),30,0);e(0,'SEQEND',8,ly)};
+  const solid=(ly,a,b,c)=>e(0,'SOLID',8,ly,10,n(a[0]),20,n(a[1]),30,0,11,n(b[0]),21,n(b[1]),31,0,12,n(c[0]),22,n(c[1]),32,0,13,n(c[0]),23,n(c[1]),33,0);
+  const s=th*.8,idL=L('SH_ID',8);
+  for(const r of R){const t=typ(r),ly=lay(r),tl=lay(r,'_TXT');
+    if(t==='mh'){circle(ly,r.xy,s*.75);e(0,'POINT',8,ly,10,n(r.xy[0]),20,n(r.xy[1]),30,0);const pt=r.pt!=null?P.pts[r.pt]:null;
+      text(tl,r.xy,pt&&pt.name?pt.name:r.name.replace(/^ת\.ב\. /,''),th,s*1.6);text(idL,r.xy,'#'+String(r.seq||0).padStart(3,'0'),th*.6,-s*1.5)}
+    else if(t==='el'){const[x,y]=r.xy,S=SHAPE[r.el]||'dot',q=s*.8;
+      if(S==='sq'||S==='sqo')pline(ly,[[x-q,y-q],[x+q,y-q],[x+q,y+q],[x-q,y+q]],1);else if(S==='tri'||S==='trio')pline(ly,[[x,y+q*1.1],[x+q,y-q*.7],[x-q,y-q*.7]],1);
+      else if(S==='dia')pline(ly,[[x,y+q],[x+q,y],[x,y-q],[x-q,y]],1);else if(S==='rect')pline(ly,[[x-q*1.4,y-q*.6],[x+q*1.4,y-q*.6],[x+q*1.4,y+q*.6],[x-q*1.4,y+q*.6]],1);else circle(ly,r.xy,q);
+      text(tl,r.xy,r.el,th*.8,s*1.7)}
+    else if(t==='line'){const pts=r.pts.map(p=>p.xy);if(pts.length>1)pline(lay(r,r.el==='רצועה'?'_STRIP':''),pts,0,r.el==='רצועה'?.5:0);else{circle(ly,pts[0],s*.4);e(0,'POINT',8,ly,10,n(pts[0][0]),20,n(pts[0][1]),30,0)}
+      r.pts.forEach(p=>{if(p.d!=null)text(L('SH_DEPTH',7),p.xy,Number(p.d).toFixed(2),th*.75,-s*1.2)})}
+    else if(t==='flow'){const fl=lay(r,'_FLOW'),a=r.a.xy,b=r.b.xy;e(0,'LINE',8,fl,10,n(a[0]),20,n(a[1]),30,0,11,n(b[0]),21,n(b[1]),31,0);
+      const ang=Math.atan2(b[1]-a[1],b[0]-a[0]),mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,al=s*1.5,c=Math.cos(ang),sn=Math.sin(ang),P2=(u,v)=>[mx+u*c-v*sn,my+u*sn+v*c];
+      solid(fl,P2(al*.6,0),P2(-al*.5,al*.4),P2(-al*.5,-al*.4))}}
+  const h=[];const H=(...kv)=>{for(let i=0;i<kv.length;i+=2)h.push(kv[i],kv[i+1])};
+  const xs=[],ys=[];for(const r of R){const t=typ(r);(t==='line'?r.pts.map(p=>p.xy):t==='flow'?[r.a.xy,r.b.xy]:[r.xy]).forEach(([x,y])=>{xs.push(x);ys.push(y)})}
+  if(!xs.length){xs.push(0);ys.push(0)}
+  H(0,'SECTION',2,'HEADER',9,'$ACADVER',1,'AC1009',9,'$EXTMIN',10,n(Math.min(...xs)),20,n(Math.min(...ys)),30,0,9,'$EXTMAX',10,n(Math.max(...xs)),20,n(Math.max(...ys)),30,0,0,'ENDSEC');
+  H(0,'SECTION',2,'TABLES',0,'TABLE',2,'LTYPE',70,1,0,'LTYPE',2,'CONTINUOUS',70,0,3,'Solid line',72,65,73,0,40,'0.0',0,'ENDTAB');
+  H(0,'TABLE',2,'LAYER',70,layers.size+1,0,'LAYER',2,'0',70,0,62,7,6,'CONTINUOUS');for(const[nm,c]of layers)H(0,'LAYER',2,nm,70,0,62,c,6,'CONTINUOUS');H(0,'ENDTAB');
+  H(0,'TABLE',2,'STYLE',70,1,0,'STYLE',2,'STANDARD',70,0,40,'0.0',41,'1.0',50,'0.0',71,0,42,'2.5',3,'arial.ttf',4,'',0,'ENDTAB',0,'ENDSEC');
+  const all=[...h,0,'SECTION',2,'ENTITIES',...o,0,'ENDSEC',0,'EOF'];let out='';for(let i=0;i<all.length;i+=2)out+=String(all[i]).padStart(3,' ')+'\r\n'+all[i+1]+'\r\n';return out}
+async function makeDxf(){const th=+($('#exS .on[data-th]')?.dataset.th||.4);$('#exGo').disabled=true;$('#exOut').hidden=true;
+  try{if(!recs.size)throw new Error('אין עדיין תיעוד בפרויקט');const txt=buildDxf(th),blob=new Blob([txt],{type:'application/dxf'});
+    const d=new Date(),stamp=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`,name=`${safe(P.name)} – תיעוד ${stamp}.dxf`;
+    pdfFile=new File([blob],name,{type:'application/dxf'});$('#exOpen').href=URL.createObjectURL(blob);$('#exOpen').setAttribute('download',name);
+    $('#exMsg').textContent=`מוכן: ${recs.size} פריטים · ${(blob.size/1024).toFixed(0)} KB · נ"צ ישראל (ITM)`;$('#exOut').hidden=false;
+    if(DBX.refresh()){try{const p=await get('projects',P.id);await dbxPut(`${await projFolder(p)}/${name}`,blob);$('#exMsg').textContent+=' · נשמר גם בדרופבוקס'}catch(e){$('#exMsg').textContent+=' · השמירה בדרופבוקס נכשלה'}}}
+  catch(e){console.error(e);$('#exMsg').textContent='שגיאה: '+(e.message||e)}finally{$('#exGo').disabled=false}}
 /* ---------- running in a browser instead of the home-screen app ---------- */
 const STANDALONE=navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
 if(!STANDALONE&&/iPhone|iPad|Android/i.test(navigator.userAgent)){const br=/CriOS/.test(navigator.userAgent)?'בכרום':/FxiOS/.test(navigator.userAgent)?'בפיירפוקס':'בספארי';
