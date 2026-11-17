@@ -190,6 +190,10 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
       </div>
       <div id="dbxOn" class="row2" hidden><button id="dbxNow">סנכרן עכשיו</button><button id="dbxOff">נתק</button></div>
     </div>
+    <div class="dbx"><b>לוגו לסקיצות</b><span id="logoStat">מופיע בראש המקרא בכל PDF</span>
+      <img id="logoImg" alt="" hidden style="max-width:60%;max-height:80px;object-fit:contain;align-self:flex-start;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px">
+      <div class="row2"><label class="b2" for="logoIn" style="display:flex;align-items:center;justify-content:center">בחר תמונת לוגו</label><button class="b2" id="logoDel" hidden>הסר</button></div>
+      <input type="file" id="logoIn" accept="image/*" hidden></div>
     <p class="hint" id="store"></p>
   </main>
 </section>
@@ -854,7 +858,7 @@ async function sketchCanvas(o){const page=o.size==='A3'?[420,297]:[297,210],k=(o
   g.save();g.beginPath();g.rect(dx,dy,mm(dw),mm(dh));g.clip();
   // background photo
   if(o.bg)for(const b of await byIdx('bgs','pid',P.id))for(const t of b.tiles){const im=await createImageBitmap(t.blob),[tl,tr,,bl]=t.corners.map(c=>XY(itmLL(c)));
-    g.save();g.globalAlpha=.55;g.setTransform((tr[0]-tl[0])/im.width,(tr[1]-tl[1])/im.width,(bl[0]-tl[0])/im.height,(bl[1]-tl[1])/im.height,tl[0],tl[1]);g.drawImage(im,0,0);g.restore()}
+    g.save();g.globalAlpha=P.lines.length?.55:.9;g.setTransform((tr[0]-tl[0])/im.width,(tr[1]-tl[1])/im.width,(bl[0]-tl[0])/im.height,(bl[1]-tl[1])/im.height,tl[0],tl[1]);g.drawImage(im,0,0);g.restore()}
   // survey drawing
   g.lineCap='round';g.lineJoin='round';
   for(const l of P.lines){const c=l.c.map(itmLL).map(XY);g.beginPath();c.forEach(([u,v],i)=>i?g.lineTo(u,v):g.moveTo(u,v));const strong=/^M2[24]/.test(l.l||'');g.strokeStyle=strong?'#55595e':'#a9adb2';g.lineWidth=mm(strong?.3:.18);g.stroke()}
@@ -891,18 +895,22 @@ async function sketchCanvas(o){const page=o.size==='A3'?[420,297]:[297,210],k=(o
   // legend panel (left)
   const lx=mm(M),lw=mm(side);let ly=mm(M);g.textAlign='right';g.direction='rtl';const rx=lx+lw-mm(2);
   const txt=(t,size,w,col,dyMm=0)=>{g.font=`${w} ${mm(size)}px Heebo,Arial,sans-serif`;g.fillStyle=col||'#16191c';g.fillText(t,rx,ly+mm(dyMm))};
-  g.strokeStyle='#16191c';g.lineWidth=mm(.35);g.strokeRect(lx,mm(M),lw,mm(dh));ly+=mm(7);txt(P.name,4.6,800);ly+=mm(6);
+  g.strokeStyle='#16191c';g.lineWidth=mm(.35);g.strokeRect(lx,mm(M),lw,mm(dh));
+  const lg=LS.get('logo');if(lg){try{const im=new Image();im.src=lg;await im.decode();const mw=mm(side-8),mh=mm(22),f=Math.min(mw/im.width,mh/im.height),w=im.width*f,h=im.height*f;g.drawImage(im,lx+(lw-w)/2,ly+mm(3),w,h);ly+=h+mm(4)}catch(e){}}
+  ly+=mm(7);txt(P.name,4.6,800);ly+=mm(6);
   txt(new Date().toLocaleDateString('he-IL'),2.8,500,'#555');ly+=mm(5);txt(`קנה מידה 1:${scale} (${o.size})`,2.8,700);ly+=mm(5);txt('רשת ישראל החדשה (ITM)',2.4,500,'#555');ly+=mm(8);
   txt('מקרא',3.2,800);ly+=mm(5);
   const used=new Map();for(const r of R)if(r.infra){const k=r.infra;if(!used.has(k))used.set(k,new Set());used.get(k).add(typ(r)==='el'?r.el:typ(r)==='mh'?'שוחה':typ(r)==='flow'?'כיוון זרימה':r.el)}
   for(const[k,set]of used){const c=IC[k][2];g.fillStyle=c;g.beginPath();g.arc(rx-mm(1.5),ly-mm(.3),mm(1.4),0,7);g.fill();g.save();g.translate(-mm(5),0);txt(`${IC[k][1]}: ${[...set].join(', ')}`,2.4,600,'#16191c');g.restore();ly+=mm(4.6)}
   ly+=mm(2);const sym=(s,label,draw)=>{draw(rx-mm(1.5),ly-mm(.3));g.save();g.translate(-mm(5),0);txt(label,2.3,500,'#333');g.restore();ly+=mm(4.4)};
-  sym('','שוחה מדודה שלא תועדה',(u,v)=>{g.strokeStyle='#d1261b';g.fillStyle='#fff';g.lineWidth=mm(.3);g.beginPath();g.arc(u,v,mm(.9),0,7);g.fill();g.stroke()});
-  sym('','שוחה שתועדה (בצבע התשתית)',(u,v)=>{g.fillStyle='#777';g.beginPath();g.arc(u,v,mm(1.2),0,7);g.fill()});
-  sym('','ארון',(u,v)=>drawSym(g,'sq',u,v,mm(1),'#777'));sym('','עמוד (ע.ח / ע.ת / ע.ט / רמזור)',(u,v)=>drawSym(g,'tri',u,v,mm(1),'#777'));sym('','שיבר / שסתום',(u,v)=>drawSym(g,'dia',u,v,mm(1),'#777'));
-  sym('','קו (עומק בנקודות, מ׳)',(u,v)=>{g.strokeStyle='#777';g.lineWidth=mm(.55);g.beginPath();g.moveTo(u-mm(3),v);g.lineTo(u+mm(1),v);g.stroke()});
-  sym('','כיוון זרימה',(u,v)=>{g.fillStyle='#777';g.beginPath();g.moveTo(u-mm(3),v);g.lineTo(u,v-mm(1.2));g.lineTo(u,v+mm(1.2));g.closePath();g.fill()});
-  const c={mh:0,el:0,line:0,flow:0};R.forEach(r=>c[typ(r)]++);ly=mm(M+dh-14);txt(`תועדו: ${c.mh} שוחות · ${c.el} אלמנטים · ${c.line} קווים · ${c.flow} זרימות`,2.3,500,'#555');ly+=mm(5);txt('הופק באפליקציית שוחות',2.1,500,'#888');
+  const ELS=new Set(R.filter(r=>typ(r)==='el').map(r=>SHAPE[r.el]||'dot')),undoc=PT.some(p=>(p.k==='mh'||p.k==='mhtxt')&&!recByPt.has(p.id));
+  if(undoc)sym('','שוחה מדודה שלא תועדה',(u,v)=>{g.strokeStyle='#d1261b';g.fillStyle='#fff';g.lineWidth=mm(.3);g.beginPath();g.arc(u,v,mm(.9),0,7);g.fill();g.stroke()});
+  if(R.some(r=>typ(r)==='mh'))sym('','שוחה (מספר, ומתחתיו עומק במ׳)',(u,v)=>{g.fillStyle='#777';g.beginPath();g.arc(u,v,mm(1.2),0,7);g.fill()});
+  if(ELS.has('sq')||ELS.has('sqo'))sym('','ארון',(u,v)=>drawSym(g,'sq',u,v,mm(1),'#777'));if(ELS.has('tri')||ELS.has('trio'))sym('','עמוד (ע.ח / ע.ת / ע.ט / רמזור)',(u,v)=>drawSym(g,'tri',u,v,mm(1),'#777'));
+  if(ELS.has('dia'))sym('','שיבר / שסתום',(u,v)=>drawSym(g,'dia',u,v,mm(1),'#777'));if(ELS.has('rect'))sym('','קולטן',(u,v)=>drawSym(g,'rect',u,v,mm(1),'#777'));if(ELS.has('ring')||ELS.has('dot'))sym('','אלמנט אחר (השם מופיע לידו)',(u,v)=>drawSym(g,'dot',u,v,mm(1),'#777'));
+  if(R.some(r=>typ(r)==='line'))sym('','קו (עומק בנקודות, מ׳)',(u,v)=>{g.strokeStyle='#777';g.lineWidth=mm(.55);g.beginPath();g.moveTo(u-mm(3),v);g.lineTo(u+mm(1),v);g.stroke()});
+  if(R.some(r=>typ(r)==='flow'))sym('','כיוון זרימה',(u,v)=>{g.fillStyle='#777';g.beginPath();g.moveTo(u-mm(3),v);g.lineTo(u,v-mm(1.2));g.lineTo(u,v+mm(1.2));g.closePath();g.fill()});
+  const c={mh:0,el:0,line:0,flow:0};R.forEach(r=>c[typ(r)]++);ly=mm(M+dh-14);txt('תועדו: '+[c.mh&&`${c.mh} שוחות`,c.el&&`${c.el} אלמנטים`,c.line&&`${c.line} קווים`,c.flow&&`${c.flow} כיווני זרימה`].filter(Boolean).join(' · '),2.3,500,'#555');if(!lg){ly+=mm(5);txt('הופק באפליקציית שוחות',2.1,500,'#888')}
   return{cv,page,scale}}
 function tablePages(page,k){const R=[...recs.values()].sort((a,b)=>(a.seq||0)-(b.seq||0)),mm=v=>v*k,W=Math.round(page[0]*k),H=Math.round(page[1]*k),rowH=7,top=24,per=Math.floor((page[1]-top-12)/rowH),out=[];
   const cols=[['#',10],['שם',70],['סוג',24],['תשתית',30],['Y',28],['X',28],['פרטים',0]];const fixed=cols.reduce((s,c)=>s+c[1],0);cols[6][1]=page[0]-20-fixed;
@@ -969,6 +977,11 @@ async function makeDxf(){const th=+($('#exS .on[data-th]')?.dataset.th||.4);$('#
     $('#exMsg').textContent=`מוכן: ${recs.size} פריטים · ${(blob.size/1024).toFixed(0)} KB · נ"צ ישראל (ITM)`;$('#exOut').hidden=false;
     if(DBX.refresh()){try{const p=await get('projects',P.id);await dbxPut(`${await projFolder(p)}/${name}`,blob);$('#exMsg').textContent+=' · נשמר גם בדרופבוקס'}catch(e){$('#exMsg').textContent+=' · השמירה בדרופבוקס נכשלה'}}}
   catch(e){console.error(e);$('#exMsg').textContent='שגיאה: '+(e.message||e)}finally{$('#exGo').disabled=false}}
+// company logo for the sketches (kept small in this phone's storage)
+function logoUi(){const d=LS.get('logo');$('#logoImg').hidden=!d;$('#logoDel').hidden=!d;if(d)$('#logoImg').src=d}
+$('#logoIn').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;try{const bm=await createImageBitmap(f),s=Math.min(1,600/Math.max(bm.width,bm.height)),c=document.createElement('canvas');
+  c.width=Math.round(bm.width*s);c.height=Math.round(bm.height*s);c.getContext('2d').drawImage(bm,0,0,c.width,c.height);LS.set('logo',c.toDataURL('image/png'));logoUi();toast('הלוגו נשמר')}catch(err){toast('לא הצלחתי לקרוא את התמונה')}});
+$('#logoDel').onclick=()=>{LS.set('logo','');logoUi()};logoUi();
 /* ---------- running in a browser instead of the home-screen app ---------- */
 const STANDALONE=navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
 if(!STANDALONE&&/iPhone|iPad|Android/i.test(navigator.userAgent)){const br=/CriOS/.test(navigator.userAgent)?'בכרום':/FxiOS/.test(navigator.userAgent)?'בפיירפוקס':'בספארי';
