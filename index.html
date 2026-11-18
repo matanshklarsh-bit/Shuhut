@@ -192,7 +192,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
     </div>
     <div class="dbx"><b>לוגו לסקיצות</b><span id="logoStat">מופיע בראש המקרא בכל PDF</span>
       <img id="logoImg" alt="" hidden style="max-width:60%;max-height:80px;object-fit:contain;align-self:flex-start;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px">
-      <div class="row2"><label class="b2" for="logoIn" style="display:flex;align-items:center;justify-content:center">בחר תמונת לוגו</label><button class="b2" id="logoDel" hidden>הסר</button></div>
+      <div class="row2"><label class="b2" for="logoIn" style="display:flex;align-items:center;justify-content:center">בחר תמונת לוגו</label><button class="b2" id="logoDbx">מדרופבוקס</button><button class="b2" id="logoDel" hidden>הסר</button></div>
       <input type="file" id="logoIn" accept="image/*" hidden></div>
     <p class="hint" id="store"></p>
   </main>
@@ -827,7 +827,7 @@ $('#dbxGo').onclick=e=>authClick(e,STANDALONE);$('#dbxPaste').onclick=e=>authCli
 // keep only the code itself (copying from the Dropbox page can bring a full stop or text along)
 const cleanCode=s=>(s.match(/[A-Za-z0-9_-]{10,}/g)||[]).sort((a,b)=>b.length-a.length)[0]||'';
 $('#dbxCode').addEventListener('input',()=>{const c=cleanCode($('#dbxCode').value),L=$('#dbxCodeLen');L.hidden=!$('#dbxCode').value;L.textContent=c?`זוהה קוד באורך ${c.length} תווים${c.length<40?' – נראה קצר, ייתכן שלא הועתק במלואו':''}`:'לא זוהה קוד'});
-$('#dbxCodeGo').onclick=async()=>{const c=cleanCode($('#dbxCode').value);if(!c)return toast('הדבק את הקוד');try{await dbxExchange(c,false);$('#dbxCodeBox').hidden=true;toast('מחובר לדרופבוקס');markAllDirty();sync()}catch(e){toast('החיבור נכשל');$('#dbxStat').textContent='החיבור נכשל: '+e.message}};
+$('#dbxCodeGo').onclick=async()=>{const c=cleanCode($('#dbxCode').value);if(!c)return toast('הדבק את הקוד');try{await dbxExchange(c,false);$('#dbxCodeBox').hidden=true;toast('מחובר לדרופבוקס');markAllDirty();sync();dropboxLogo()}catch(e){toast('החיבור נכשל');$('#dbxStat').textContent='החיבור נכשל: '+e.message}};
 $('#dbxNow').onclick=()=>{markAllDirty();sync()};
 $('#dbxOff').onclick=()=>arm($('#dbxOff'),'לחץ שוב לניתוק',()=>{['dbxRefresh','dbxAccess','dbxExp'].forEach(k=>LS.set(k,''));syncUi()});
 async function markAllDirty(){for(const p of await all('projects'))if((await byIdx('records','pid',p.id)).length)dirty.add(p.id);LS.set('dbxDirty',JSON.stringify([...dirty]))}
@@ -978,10 +978,16 @@ async function makeDxf(){const th=+($('#exS .on[data-th]')?.dataset.th||.4);$('#
     if(DBX.refresh()){try{const p=await get('projects',P.id);await dbxPut(`${await projFolder(p)}/${name}`,blob);$('#exMsg').textContent+=' · נשמר גם בדרופבוקס'}catch(e){$('#exMsg').textContent+=' · השמירה בדרופבוקס נכשלה'}}}
   catch(e){console.error(e);$('#exMsg').textContent='שגיאה: '+(e.message||e)}finally{$('#exGo').disabled=false}}
 // company logo for the sketches (kept small in this phone's storage)
-function logoUi(){const d=LS.get('logo');$('#logoImg').hidden=!d;$('#logoDel').hidden=!d;if(d)$('#logoImg').src=d}
-$('#logoIn').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;try{const bm=await createImageBitmap(f),s=Math.min(1,600/Math.max(bm.width,bm.height)),c=document.createElement('canvas');
-  c.width=Math.round(bm.width*s);c.height=Math.round(bm.height*s);c.getContext('2d').drawImage(bm,0,0,c.width,c.height);LS.set('logo',c.toDataURL('image/png'));logoUi();toast('הלוגו נשמר')}catch(err){toast('לא הצלחתי לקרוא את התמונה')}});
-$('#logoDel').onclick=()=>{LS.set('logo','');logoUi()};logoUi();
+function logoUi(){const d=LS.get('logo');$('#logoImg').hidden=!d;$('#logoDel').hidden=!d;if(d)$('#logoImg').src=d;$('#logoStat').textContent=LS.get('logoSrc')==='dropbox'?'הלוגו הקבוע מדרופבוקס (Apps/Shuhot/לוגו.jpg) – מופיע בראש המקרא בכל PDF':'מופיע בראש המקרא בכל PDF'}
+async function logoFromBlob(blob){const bm=await createImageBitmap(blob),s=Math.min(1,1200/Math.max(bm.width,bm.height)),c=document.createElement('canvas');c.width=Math.round(bm.width*s);c.height=Math.round(bm.height*s);
+  const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(bm,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.92)}
+// the permanent logo lives in the app's Dropbox folder as לוגו.jpg (or .png); refreshed once a day unless a logo was picked by hand
+async function dropboxLogo(force){if(!DBX.refresh()||LS.get('logoSrc')==='manual')return;if(!force&&LS.get('logo')&&Date.now()-(+LS.get('logoAt')||0)<864e5)return;
+  for(const path of['/לוגו.jpg','/לוגו.png']){try{const tk=await dbxToken(),r=await fetch('https://content.dropboxapi.com/2/files/download',{method:'POST',headers:{Authorization:'Bearer '+tk,'Dropbox-API-Arg':hdr({path})}});
+    if(!r.ok)continue;LS.set('logo',await logoFromBlob(await r.blob()));LS.set('logoSrc','dropbox');LS.set('logoAt',String(Date.now()));logoUi();if(force)toast('הלוגו נטען מדרופבוקס');return}catch(e){}}
+  if(force)toast('לא נמצא לוגו.jpg בתיקיית האפליקציה בדרופבוקס')}
+$('#logoIn').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;try{LS.set('logo',await logoFromBlob(f));LS.set('logoSrc','manual');logoUi();toast('הלוגו נשמר')}catch(err){toast('לא הצלחתי לקרוא את התמונה')}});
+$('#logoDel').onclick=()=>{LS.set('logo','');LS.set('logoSrc','manual');logoUi()};$('#logoDbx').onclick=()=>{LS.set('logoSrc','');dropboxLogo(true)};logoUi();
 /* ---------- running in a browser instead of the home-screen app ---------- */
 const STANDALONE=navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
 if(!STANDALONE&&/iPhone|iPad|Android/i.test(navigator.userAgent)){const br=/CriOS/.test(navigator.userAgent)?'בכרום':/FxiOS/.test(navigator.userAgent)?'בפיירפוקס':'בספארי';
@@ -989,7 +995,7 @@ if(!STANDALONE&&/iPhone|iPad|Android/i.test(navigator.userAgent)){const br=/CriO
 /* ---------- start ---------- */
 (async()=>{try{await openDb()}catch(e){document.body.innerHTML='<p style="padding:30px">האחסון בדפדפן לא זמין (מצב פרטי?)</p>';return}
   if(!(await get('projects','demo-4087-25')))await put('projects',{id:'demo-4087-25',name:'תוכנית '+DEMO.plan+' (דוגמה)',plan:DEMO.plan,created:1,lines:DEMO.lines,pts:DEMO.pts,ref:DEMO.ref});
-  $('#snapCb').checked=!!vis.snap;modeUi();await dbxReturn();syncUi();countPending();sync();
+  $('#snapCb').checked=!!vis.snap;modeUi();await dbxReturn();syncUi();countPending();sync();dropboxLogo();
   const last=LS.get('last');if(last&&await get('projects',last))openProject(last);else home()})();
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
