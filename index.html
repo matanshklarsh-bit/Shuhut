@@ -454,7 +454,8 @@ function initMap(){map=new maplibregl.Map({container:'map',style:{version:8,sour
     map.addLayer({id:'mhtxt',type:'circle',source:'pt',filter:['==','k','mhtxt'],paint:{'circle-radius':R(3,8),'circle-color':'#fff','circle-stroke-color':'#ec7a00','circle-stroke-width':R(2,3.5)}});
     map.addLayer({id:'mh',type:'circle',source:'pt',filter:['==','k','mh'],paint:{'circle-radius':R(3.5,9),'circle-color':'#fff','circle-stroke-color':'#d1261b','circle-stroke-width':R(2,3.5)}});
     map.addLayer({id:'strip',type:'line',source:'lns',filter:['==','el','רצועה'],paint:{'line-color':['get','c'],'line-opacity':.25,'line-width':R(6,18)}});
-    map.addLayer({id:'lns',type:'line',source:'lns',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['get','c'],'line-width':R(2,4.5)}});
+    map.addLayer({id:'lns',type:'line',source:'lns',filter:['!=','el','קו עילי'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['get','c'],'line-width':R(2,4.5)}});
+    map.addLayer({id:'lnsAir',type:'line',source:'lns',filter:['==','el','קו עילי'],layout:{'line-join':'round'},paint:{'line-color':['get','c'],'line-width':R(2,4),'line-dasharray':[2.2,1.6]}});
     map.addLayer({id:'lnp',type:'circle',source:'lnv',filter:['==','s',1],paint:{'circle-radius':R(3.5,8),'circle-color':['get','c'],'circle-stroke-color':'#fff','circle-stroke-width':2}});
     map.addLayer({id:'lnv',type:'circle',source:'lnv',minzoom:18,filter:['!=','s',1],paint:{'circle-radius':R(2,4.5),'circle-color':'#fff','circle-stroke-color':['get','c'],'circle-stroke-width':2}});
     map.addLayer({id:'flow',type:'line',source:'flow',paint:{'line-color':['get','c'],'line-width':R(2,4)}});
@@ -480,10 +481,10 @@ async function openProject(id){activeLine=null;flowFrom=null;const p=await get('
 const fit=(anim=true)=>map.fitBounds(B,{padding:{top:60,bottom:240,left:20,right:70},animate:anim});
 /* ---------- elements, lines, flow (element lists as in Medidot) ---------- */
 const TEL=['שוחה','ע.ט','ארון','קו','רצועה'];
-const EL={sewer:['שוחה','קו'],drain:['שוחה','קו','קולטן'],water:['שוחה','שיבר','ש.מ','צינור','גמל','נשם','הידרנט','ארון','קו'],bezeq:TEL,hot:TEL,cellcom:TEL,partner:TEL,unlimited:TEL,
-  light:['שוחה','ע.ת','ארון','קו','רצועה'],elec:['שוחה','ע.ח','ע.ח מרובע','ארון','קו','רצועה'],hv:['שוחה','ע.ח','ע.ח מרובע','ארון','קו','רצועה'],gas:['שוחה','ארון','קו','רצועה'],
+const EL={sewer:['שוחה','קו'],drain:['שוחה','קו','קולטן'],water:['שוחה','שיבר','ש.מ','צינור','גמל','נשם','הידרנט','ארון','קו'],bezeq:['שוחה','ע.ט','ארון','קו','רצועה','קו עילי'],hot:TEL,cellcom:TEL,partner:TEL,unlimited:TEL,
+  light:['שוחה','ע.ת','ארון','קו','רצועה'],elec:['שוחה','ע.ח','ע.ח מרובע','ארון','קו','רצועה','קו עילי'],hv:['שוחה','ע.ח','ע.ח מרובע','ארון','קו','רצועה'],gas:['שוחה','ארון','קו','רצועה'],
   comm:['שוחה','ארון','קו'],traffic:['שוחה','רמזור','ארון','קו','רצועה'],citycomm:['שוחה','ארון','קו','רצועה'],irrig:['שוחה','שסתום','מסנן','ארון','צינור','קו'],other:['שוחה','ארון','קו']};
-const LINEAR=['קו','רצועה'];
+const LINEAR=['קו','רצועה','קו עילי'];const AIR='קו עילי';
 const ptEls=k=>(EL[k]||[]).filter(e=>!LINEAR.includes(e)),lnEls=k=>(EL[k]||[]).filter(e=>LINEAR.includes(e));
 const SHAPE={'ארון':'sq','ע.ח מרובע':'sqo','ע.ח':'tri','ע.ת':'tri','ע.ט':'tri','רמזור':'tri','שיבר':'dia','שסתום':'dia','ש.מ':'ring','הידרנט':'trio','קולטן':'rect'};
 const typ=r=>r.type||'mh';
@@ -592,7 +593,7 @@ $('#pick').addEventListener('click',async()=>{const rc=recOf(cur);
     const L=activeLine;if(!L.seq)L.seq=nextSeq();const last=L.pts[L.pts.length-1];if(last&&last.ll[0]===ll[0]&&last.ll[1]===ll[1])return toast('הזז את הכוונת לנקודה הבאה');
     if(cur&&cur.t==='lv'&&cur.r!==L&&cur.r.pts.length===1&&!cur.r.open)return absorb(L,cur.r);
     const v={xy,ll,d:null,on:cur?tName(cur):null};if(cur&&cur.t==='lv'&&cur.r!==L)v.ref={line:cur.r.id,i:cur.i};else if(cur&&cur.t==='rec')v.ref={rec:cur.r.id};else if(cur&&cur.t==='pt')v.ref={pt:cur.p.id};
-    L.pts.push(v);if(L.pts.length===1){L.xy=xy;L.ll=ll}L.open=true;await saveRec(L);askDepth(L,L.pts.length-1);return}
+    L.pts.push(v);if(L.pts.length===1){L.xy=xy;L.ll=ll}L.open=true;await saveRec(L);if(L.el!==AIR)askDepth(L,L.pts.length-1);return}
   if(!isMh(cur))return toast('כוון לשוחה, לקולטן או לנקודה בקו ביוב/ניקוז');
   const end={name:tName(cur),xy,ll,ref:cur.t==='pt'?{pt:cur.p.id}:cur.t==='lv'?{line:cur.r.id,i:cur.i}:{rec:cur.r.id}};
   if(!flowFrom){flowFrom=end;return update()}
@@ -642,7 +643,7 @@ $('#sf').addEventListener('submit',e=>{e.preventDefault();const q=$('#q').value.
   const ll=p?p.ll:r?r.ll:null;if(!ll)return toast('לא נמצאה נקודה '+q);follow=false;gpsBtn();map.flyTo({center:ll,zoom:21.5})});
 $('#bFit').onclick=()=>{follow=false;gpsBtn();fit()};
 $('#bLay').onclick=()=>{$('#layers').classList.toggle('open');$('#bLay').classList.toggle('on')};
-$('#layers').addEventListener('change',e=>{const k=e.target.dataset.k;vis[k]=e.target.checked?1:0;if(k==='snap'){LS.set('nosnap',vis.snap?'':'1');cur=null;update();return}if(k==='bg'){bgIds.forEach(id=>map.setLayoutProperty(id,'visibility',vis.bg?'visible':'none'));return}if(k!=='lbl')(k==='rec'?['rec','el','lns','strip','lnv','lnp','flow','flowArr']:[k]).forEach(id=>map.setLayoutProperty(id,'visibility',vis[k]?'visible':'none'));update()});
+$('#layers').addEventListener('change',e=>{const k=e.target.dataset.k;vis[k]=e.target.checked?1:0;if(k==='snap'){LS.set('nosnap',vis.snap?'':'1');cur=null;update();return}if(k==='bg'){bgIds.forEach(id=>map.setLayoutProperty(id,'visibility',vis.bg?'visible':'none'));return}if(k!=='lbl')(k==='rec'?['rec','el','lns','lnsAir','strip','lnv','lnp','flow','flowArr']:[k]).forEach(id=>map.setLayoutProperty(id,'visibility',vis[k]?'visible':'none'));update()});
 $('#back').onclick=home;
 
 /* ---------- GPS ---------- */
@@ -867,7 +868,7 @@ async function sketchCanvas(o){const page=o.size==='A3'?[420,297]:[297,210],k=(o
   // documented items
   const R=[...recs.values()];
   for(const r of R.filter(r=>typ(r)==='line'&&r.pts.length>1)){const c=r.pts.map(p=>XY(p.xy)),col=colOf(r);g.beginPath();c.forEach(([u,v],i)=>i?g.lineTo(u,v):g.moveTo(u,v));
-    if(r.el==='רצועה'){g.save();g.globalAlpha=.25;g.strokeStyle=col;g.lineWidth=mm(2.2);g.stroke();g.restore()}g.strokeStyle=col;g.lineWidth=mm(.55);g.stroke()}
+    if(r.el==='רצועה'){g.save();g.globalAlpha=.25;g.strokeStyle=col;g.lineWidth=mm(2.2);g.stroke();g.restore()}g.strokeStyle=col;g.lineWidth=mm(.55);if(r.el===AIR)g.setLineDash([mm(2.2),mm(1.4)]);g.stroke();g.setLineDash([])}
   for(const r of R.filter(r=>typ(r)==='line'))for(const p of r.pts){const[u,v]=XY(p.xy),single=r.pts.length===1;g.fillStyle=single?colOf(r):'#fff';g.strokeStyle=single?'#fff':colOf(r);g.lineWidth=mm(.25);g.beginPath();g.arc(u,v,mm(single?.9:.5),0,7);g.fill();g.stroke()}
   for(const r of R.filter(r=>typ(r)==='flow')){const[a,b]=[XY(r.a.xy),XY(r.b.xy)],col=colOf(r);g.strokeStyle=col;g.lineWidth=mm(.45);g.beginPath();g.moveTo(...a);g.lineTo(...b);g.stroke();
     const ang=Math.atan2(b[1]-a[1],b[0]-a[0]),mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,s=mm(1.6);g.save();g.translate(mx,my);g.rotate(ang);g.fillStyle=col;g.beginPath();g.moveTo(s,0);g.lineTo(-s*.8,-s*.7);g.lineTo(-s*.4,0);g.lineTo(-s*.8,s*.7);g.closePath();g.fill();g.restore()}
@@ -908,7 +909,8 @@ async function sketchCanvas(o){const page=o.size==='A3'?[420,297]:[297,210],k=(o
   if(R.some(r=>typ(r)==='mh'))sym('','שוחה (מספר, ומתחתיו עומק במ׳)',(u,v)=>{g.fillStyle='#777';g.beginPath();g.arc(u,v,mm(1.2),0,7);g.fill()});
   if(ELS.has('sq')||ELS.has('sqo'))sym('','ארון',(u,v)=>drawSym(g,'sq',u,v,mm(1),'#777'));if(ELS.has('tri')||ELS.has('trio'))sym('','עמוד (ע.ח / ע.ת / ע.ט / רמזור)',(u,v)=>drawSym(g,'tri',u,v,mm(1),'#777'));
   if(ELS.has('dia'))sym('','שיבר / שסתום',(u,v)=>drawSym(g,'dia',u,v,mm(1),'#777'));if(ELS.has('rect'))sym('','קולטן',(u,v)=>drawSym(g,'rect',u,v,mm(1),'#777'));if(ELS.has('ring')||ELS.has('dot'))sym('','אלמנט אחר (השם מופיע לידו)',(u,v)=>drawSym(g,'dot',u,v,mm(1),'#777'));
-  if(R.some(r=>typ(r)==='line'))sym('','קו (עומק בנקודות, מ׳)',(u,v)=>{g.strokeStyle='#777';g.lineWidth=mm(.55);g.beginPath();g.moveTo(u-mm(3),v);g.lineTo(u+mm(1),v);g.stroke()});
+  if(R.some(r=>typ(r)==='line'&&r.el===AIR))sym('','קו עילי',(u,v)=>{g.strokeStyle='#777';g.lineWidth=mm(.55);g.setLineDash([mm(1),mm(.7)]);g.beginPath();g.moveTo(u-mm(2.2),v);g.lineTo(u+mm(1.3),v);g.stroke();g.setLineDash([])});
+  if(R.some(r=>typ(r)==='line'&&r.el!==AIR))sym('','קו (עומק בנקודות, מ׳)',(u,v)=>{g.strokeStyle='#777';g.lineWidth=mm(.55);g.beginPath();g.moveTo(u-mm(3),v);g.lineTo(u+mm(1),v);g.stroke()});
   if(R.some(r=>typ(r)==='flow'))sym('','כיוון זרימה',(u,v)=>{g.fillStyle='#777';g.beginPath();g.moveTo(u-mm(3),v);g.lineTo(u,v-mm(1.2));g.lineTo(u,v+mm(1.2));g.closePath();g.fill()});
   const c={mh:0,el:0,line:0,flow:0};R.forEach(r=>c[typ(r)]++);ly=mm(M+dh-14);txt('תועדו: '+[c.mh&&`${c.mh} שוחות`,c.el&&`${c.el} אלמנטים`,c.line&&`${c.line} קווים`,c.flow&&`${c.flow} כיווני זרימה`].filter(Boolean).join(' · '),2.3,500,'#555');if(!lg){ly+=mm(5);txt('הופק באפליקציית שוחות',2.1,500,'#888')}
   return{cv,page,scale}}
@@ -947,7 +949,7 @@ function buildDxf(th){const R=[...recs.values()],o=[],layers=new Map(),n=v=>(+v)
   const e=(...kv)=>{for(let i=0;i<kv.length;i+=2)o.push(kv[i],kv[i+1])};
   const text=(ly,[x,y],s,h,dy=0)=>{if(s==null||s==='')return;e(0,'TEXT',8,ly,10,n(x),20,n(y+dy),30,0,40,n(h),1,dxfStr(s),72,1,73,2,11,n(x),21,n(y+dy),31,0)};
   const circle=(ly,[x,y],r)=>e(0,'CIRCLE',8,ly,10,n(x),20,n(y),30,0,40,n(r));
-  const pline=(ly,pts,closed,w)=>{e(0,'POLYLINE',8,ly,66,1,10,0,20,0,30,0,70,closed?1:0);if(w)e(40,n(w),41,n(w));for(const[x,y]of pts)e(0,'VERTEX',8,ly,10,n(x),20,n(y),30,0);e(0,'SEQEND',8,ly)};
+  const pline=(ly,pts,closed,w,lt)=>{e(0,'POLYLINE',8,ly);if(lt)e(6,lt);e(66,1,10,0,20,0,30,0,70,closed?1:0);if(w)e(40,n(w),41,n(w));for(const[x,y]of pts)e(0,'VERTEX',8,ly,10,n(x),20,n(y),30,0);e(0,'SEQEND',8,ly)};
   const solid=(ly,a,b,c)=>e(0,'SOLID',8,ly,10,n(a[0]),20,n(a[1]),30,0,11,n(b[0]),21,n(b[1]),31,0,12,n(c[0]),22,n(c[1]),32,0,13,n(c[0]),23,n(c[1]),33,0);
   const s=th*.8,idL=L('SH_ID',8);
   for(const r of R){const t=typ(r),ly=lay(r),tl=lay(r,'_TXT');
@@ -957,7 +959,7 @@ function buildDxf(th){const R=[...recs.values()],o=[],layers=new Map(),n=v=>(+v)
       if(S==='sq'||S==='sqo')pline(ly,[[x-q,y-q],[x+q,y-q],[x+q,y+q],[x-q,y+q]],1);else if(S==='tri'||S==='trio')pline(ly,[[x,y+q*1.1],[x+q,y-q*.7],[x-q,y-q*.7]],1);
       else if(S==='dia')pline(ly,[[x,y+q],[x+q,y],[x,y-q],[x-q,y]],1);else if(S==='rect')pline(ly,[[x-q*1.4,y-q*.6],[x+q*1.4,y-q*.6],[x+q*1.4,y+q*.6],[x-q*1.4,y+q*.6]],1);else circle(ly,r.xy,q);
       text(tl,r.xy,r.el,th*.8,s*1.7)}
-    else if(t==='line'){const pts=r.pts.map(p=>p.xy);if(pts.length>1)pline(lay(r,r.el==='רצועה'?'_STRIP':''),pts,0,r.el==='רצועה'?.5:0);else{circle(ly,pts[0],s*.4);e(0,'POINT',8,ly,10,n(pts[0][0]),20,n(pts[0][1]),30,0)}
+    else if(t==='line'){const pts=r.pts.map(p=>p.xy);if(pts.length>1)pline(lay(r,r.el==='רצועה'?'_STRIP':r.el===AIR?'_AIR':''),pts,0,r.el==='רצועה'?.5:0,r.el===AIR?'DASHED':0);else{circle(ly,pts[0],s*.4);e(0,'POINT',8,ly,10,n(pts[0][0]),20,n(pts[0][1]),30,0)}
       r.pts.forEach(p=>{if(p.d!=null)text(L('SH_DEPTH',7),p.xy,Number(p.d).toFixed(2),th*.75,-s*1.2)})}
     else if(t==='flow'){const fl=lay(r,'_FLOW'),a=r.a.xy,b=r.b.xy;e(0,'LINE',8,fl,10,n(a[0]),20,n(a[1]),30,0,11,n(b[0]),21,n(b[1]),31,0);
       const ang=Math.atan2(b[1]-a[1],b[0]-a[0]),mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,al=s*1.5,c=Math.cos(ang),sn=Math.sin(ang),P2=(u,v)=>[mx+u*c-v*sn,my+u*sn+v*c];
@@ -966,7 +968,7 @@ function buildDxf(th){const R=[...recs.values()],o=[],layers=new Map(),n=v=>(+v)
   const xs=[],ys=[];for(const r of R){const t=typ(r);(t==='line'?r.pts.map(p=>p.xy):t==='flow'?[r.a.xy,r.b.xy]:[r.xy]).forEach(([x,y])=>{xs.push(x);ys.push(y)})}
   if(!xs.length){xs.push(0);ys.push(0)}
   H(0,'SECTION',2,'HEADER',9,'$ACADVER',1,'AC1009',9,'$EXTMIN',10,n(Math.min(...xs)),20,n(Math.min(...ys)),30,0,9,'$EXTMAX',10,n(Math.max(...xs)),20,n(Math.max(...ys)),30,0,0,'ENDSEC');
-  H(0,'SECTION',2,'TABLES',0,'TABLE',2,'LTYPE',70,1,0,'LTYPE',2,'CONTINUOUS',70,0,3,'Solid line',72,65,73,0,40,'0.0',0,'ENDTAB');
+  H(0,'SECTION',2,'TABLES',0,'TABLE',2,'LTYPE',70,2,0,'LTYPE',2,'CONTINUOUS',70,0,3,'Solid line',72,65,73,0,40,'0.0',0,'LTYPE',2,'DASHED',70,0,3,'__ __ __',72,65,73,2,40,'2.0',49,'1.2',49,'-0.8',0,'ENDTAB');
   H(0,'TABLE',2,'LAYER',70,layers.size+1,0,'LAYER',2,'0',70,0,62,7,6,'CONTINUOUS');for(const[nm,c]of layers)H(0,'LAYER',2,nm,70,0,62,c,6,'CONTINUOUS');H(0,'ENDTAB');
   H(0,'TABLE',2,'STYLE',70,1,0,'STYLE',2,'STANDARD',70,0,40,'0.0',41,'1.0',50,'0.0',71,0,42,'2.5',3,'arial.ttf',4,'',0,'ENDTAB',0,'ENDSEC');
   const all=[...h,0,'SECTION',2,'ENTITIES',...o,0,'ENDSEC',0,'EOF'];let out='';for(let i=0;i<all.length;i+=2)out+=String(all[i]).padStart(3,' ')+'\r\n'+all[i+1]+'\r\n';return out}
