@@ -300,7 +300,8 @@ const PROJ4='https://cdn.jsdelivr.net/npm/proj4@2.12.1/dist/proj4.js';
 const ITMDEF='+proj=tmerc +lat_0=31.7343936111111 +lon_0=35.2045169444444 +k=1.0000067 +x_0=219529.584 +y_0=626907.39 +ellps=GRS80 +towgs84=-24.0024,-17.1032,-17.8444,-0.33077,-1.85269,1.66969,5.4248 +units=m +no_defs';
 const DECL=5; // magnetic declination in Israel (deg east) -> true north
 // same list, order and colours as the Medidot app
-const INFRA=[['sewer','ביוב','#A16207'],['drain','ניקוז','#0EA5E9'],['water','מים','#1D4ED8'],['bezeq','בזק','#15803D'],['hot','הוט','#EA580C'],['cellcom','סלקום','#7C3AED'],['partner','פרטנר','#0D9488'],['unlimited','אנלימיטד','#BE185D'],['light','תאורה','#D97706'],['elec','חשמל','#DC2626'],['hv','חשמל מתח גבוה','#9A3412'],['gas','גז','#EAB308','#1A1A1A'],['comm','תקשורת','#475569'],['traffic','רמזורים','#EC4899'],['citycomm','תקשורת עירונית','#4ADE80','#14532D'],['irrig','השקיה','#16A34A'],['other','אחר','#8D8D8D']];
+const INFRA=[['sewer','ביוב','#A16207'],['drain','ניקוז','#0EA5E9'],['water','מים','#1D4ED8'],['bezeq','בזק','#15803D'],['hot','הוט','#EA580C'],['cellcom','סלקום','#7C3AED'],['partner','פרטנר','#0D9488'],['unlimited','אנלימיטד','#BE185D'],['light','תאורה','#D97706'],['elec','חשמל','#DC2626'],['hv','חשמל מתח גבוה','#9A3412'],['gas','גז','#EAB308','#1A1A1A'],['comm','תקשורת','#475569'],['traffic','רמזורים','#EC4899'],['citycomm','תקשורת עירונית','#4ADE80','#14532D'],['irrig','השקיה','#16A34A'],['ground','הארקה','#2E9E3E'],['other','אחר','#8D8D8D']];
+const STRIPE={ground:'#F5D90A'};const swatch=k=>STRIPE[k]?`linear-gradient(135deg,${IC[k][2]} 50%,${STRIPE[k]} 50%)`:IC[k][2];
 const IC=Object.fromEntries(INFRA.map(i=>[i[0],i]));
 const $=s=>document.querySelector(s);
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -455,6 +456,7 @@ function initMap(){map=new maplibregl.Map({container:'map',style:{version:8,sour
     map.addLayer({id:'mh',type:'circle',source:'pt',filter:['==','k','mh'],paint:{'circle-radius':R(3.5,9),'circle-color':'#fff','circle-stroke-color':'#d1261b','circle-stroke-width':R(2,3.5)}});
     map.addLayer({id:'strip',type:'line',source:'lns',filter:['==','el','רצועה'],paint:{'line-color':['get','c'],'line-opacity':.25,'line-width':R(6,18)}});
     map.addLayer({id:'lns',type:'line',source:'lns',filter:['!=','el','קו עילי'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['get','c'],'line-width':R(2,4.5)}});
+    map.addLayer({id:'lnsStripe',type:'line',source:'lns',filter:['!=','s2',''],paint:{'line-color':['get','s2'],'line-width':R(1.2,2.6),'line-dasharray':[1,1.4]}});
     map.addLayer({id:'lnsAir',type:'line',source:'lns',filter:['==','el','קו עילי'],layout:{'line-join':'round'},paint:{'line-color':['get','c'],'line-width':R(2,4),'line-dasharray':[2.2,1.6]}});
     map.addLayer({id:'lnp',type:'circle',source:'lnv',filter:['==','s',1],paint:{'circle-radius':R(3.5,8),'circle-color':['get','c'],'circle-stroke-color':'#fff','circle-stroke-width':2}});
     map.addLayer({id:'lnv',type:'circle',source:'lnv',minzoom:18,filter:['!=','s',1],paint:{'circle-radius':R(2,4.5),'circle-color':'#fff','circle-stroke-color':['get','c'],'circle-stroke-width':2}});
@@ -462,7 +464,7 @@ function initMap(){map=new maplibregl.Map({container:'map',style:{version:8,sour
     map.addLayer({id:'flowArr',type:'symbol',source:'flow',layout:{'symbol-placement':'line-center','icon-image':['concat','arrow|',['get','c']],'icon-size':R(.8,1.4),'icon-allow-overlap':true,'icon-ignore-placement':true,'icon-rotation-alignment':'map'}});
     map.addLayer({id:'band',type:'line',source:'band',paint:{'line-color':['get','c'],'line-width':['case',['==',['get','a'],1],3,1.5],'line-opacity':['case',['==',['get','a'],1],1,.45],'line-dasharray':[2,2]}});
     map.addLayer({id:'el',type:'symbol',source:'el',layout:{'icon-image':['concat',['get','s'],'|',['get','c']],'icon-size':R(.45,.95),'icon-allow-overlap':true,'icon-ignore-placement':true}});
-    map.addLayer({id:'rec',type:'circle',source:'rec',paint:{'circle-radius':R(5,12),'circle-color':['get','c'],'circle-stroke-color':'#fff','circle-stroke-width':R(1.5,3)}});
+    map.addLayer({id:'rec',type:'circle',source:'rec',paint:{'circle-radius':R(5,12),'circle-color':['get','c'],'circle-stroke-color':['get','s2'],'circle-stroke-width':R(1.5,3)}});
     map.addLayer({id:'acc',type:'fill',source:'acc',paint:{'fill-color':'rgba(29,111,214,.12)','fill-outline-color':'rgba(29,111,214,.5)'}});
     map.addLayer({id:'me',type:'circle',source:'me',paint:{'circle-radius':8,'circle-color':'#1d6fd6','circle-stroke-color':'#fff','circle-stroke-width':3}});
     res()}));
@@ -483,7 +485,7 @@ const fit=(anim=true)=>map.fitBounds(B,{padding:{top:60,bottom:240,left:20,right
 const TEL=['שוחה','ע.ט','ארון','קו','רצועה'];
 const EL={sewer:['שוחה','קו'],drain:['שוחה','קו','קולטן'],water:['שוחה','שיבר','ש.מ','צינור','גמל','נשם','הידרנט','ארון','קו'],bezeq:['שוחה','ע.ט','ארון','קו','רצועה','קו עילי'],hot:TEL,cellcom:TEL,partner:TEL,unlimited:TEL,
   light:['שוחה','ע.ת','ארון','קו','רצועה'],elec:['שוחה','ע.ח','ע.ח מרובע','ארון','קו','רצועה','קו עילי'],hv:['שוחה','ע.ח','ע.ח מרובע','ארון','קו','רצועה'],gas:['שוחה','ארון','קו','רצועה'],
-  comm:['שוחה','ארון','קו'],traffic:['שוחה','רמזור','ארון','קו','רצועה'],citycomm:['שוחה','ארון','קו','רצועה'],irrig:['שוחה','שסתום','מסנן','ארון','צינור','קו'],other:['שוחה','ארון','קו']};
+  comm:['שוחה','ארון','קו'],traffic:['שוחה','רמזור','ארון','קו','רצועה'],citycomm:['שוחה','ארון','קו','רצועה'],irrig:['שוחה','שסתום','מסנן','ארון','צינור','קו'],ground:['שוחה','קו'],other:['שוחה','ארון','קו']};
 const LINEAR=['קו','רצועה','קו עילי'];const AIR='קו עילי';
 const ptEls=k=>(EL[k]||[]).filter(e=>!LINEAR.includes(e)),lnEls=k=>(EL[k]||[]).filter(e=>LINEAR.includes(e));
 const SHAPE={'ארון':'sq','ע.ח מרובע':'sqo','ע.ח':'tri','ע.ת':'tri','ע.ט':'tri','רמזור':'tri','שיבר':'dia','שסתום':'dia','ש.מ':'ring','הידרנט':'trio','קולטן':'rect'};
@@ -514,9 +516,9 @@ async function loadRecs(){recs=new Map((await byIdx('records','pid',P.id)).map(r
   let s=Math.max(0,...[...recs.values()].map(r=>r.seq||0));for(const r of [...recs.values()].sort((a,b)=>a.created-b.created)){let ch=false;if(/^ת\.ב\.\s*$/.test(r.name)){r.name='ת.ב. ללא מספר';ch=true}if(!r.seq){r.seq=++s;ch=true}if(ch)await put('records',r)}const a=recs.get(LS.get('activeLine'));const ol=openLines();setActive(a&&a.open?a:ol[ol.length-1]);drawRecs()}
 function drawRecs(){recByPt=new Map();for(const r of recs.values())if(r.pt!=null&&(typ(r)==='mh'||typ(r)==='el'))recByPt.set(r.pt,r);
   if(map&&map.getSource('rec')){const R=[...recs.values()],F=(g,p)=>({type:'Feature',properties:p,geometry:g});
-    map.getSource('rec').setData(fc(R.filter(r=>typ(r)==='mh').map(r=>F({type:'Point',coordinates:r.ll},{c:colOf(r)}))));
+    map.getSource('rec').setData(fc(R.filter(r=>typ(r)==='mh').map(r=>F({type:'Point',coordinates:r.ll},{c:colOf(r),s2:STRIPE[r.infra]||'#fff'}))));
     map.getSource('el').setData(fc(R.filter(r=>typ(r)==='el').map(r=>F({type:'Point',coordinates:r.ll},{c:colOf(r),s:SHAPE[r.el]||'dot'}))));
-    map.getSource('lns').setData(fc(R.filter(r=>typ(r)==='line'&&r.pts.length>1).map(r=>F({type:'LineString',coordinates:r.pts.map(p=>p.ll)},{c:colOf(r),el:r.el}))));
+    map.getSource('lns').setData(fc(R.filter(r=>typ(r)==='line'&&r.pts.length>1).map(r=>F({type:'LineString',coordinates:r.pts.map(p=>p.ll)},{c:colOf(r),el:r.el,s2:STRIPE[r.infra]||''}))));
     map.getSource('lnv').setData(fc(R.filter(r=>typ(r)==='line').flatMap(r=>r.pts.map(p=>F({type:'Point',coordinates:p.ll},{c:colOf(r),s:r.pts.length===1&&!r.open?1:0})))));
     map.getSource('flow').setData(fc(R.filter(r=>typ(r)==='flow').map(r=>F({type:'LineString',coordinates:[r.a.ll,r.b.ll]},{c:colOf(r)}))))}
   const c={mh:0,el:0,line:0,flow:0};for(const r of recs.values())c[typ(r)]++;const ph=[...recs.values()].reduce((s,r)=>s+(r.n||0),0);
@@ -620,7 +622,7 @@ $('#olines').addEventListener('click',e=>{const b=e.target.closest('button');if(
   const L=openLines().find(x=>x.id===b.dataset.id);if(L&&L!==activeLine){dropEmpty();setActive(L);update()}});
 function saveSel(){LS.set('selElInf',sel.el.inf);LS.set('selEl',sel.el.el);LS.set('selLnInf',sel.line.inf);LS.set('selLnEl',sel.line.el);LS.set('selFlInf',sel.flow.inf)}
 function selUi(){$('#selRow').hidden=mode==='mh'||mode==='line';if(mode==='mh'||mode==='line')return;const s=sel[mode],c=IC[s.inf];$('#selBtn').innerHTML=`<i style="background:${c[2]}"></i>${c[1]}${mode==='flow'?'':' · '+s.el} <span style="color:var(--mute)">▾</span>`}
-const chip=(k,on,label)=>{const[,l,c,tx]=IC[k];return`<button data-k="${k}" class="${on?'on':''}" style="${on?`background:${c};border-color:${c};color:${tx||'#fff'}`:''}"><i style="background:${c}"></i>${label||l}</button>`};
+const chip=(k,on,label)=>{const[,l,c,tx]=IC[k];return`<button data-k="${k}" class="${on?'on':''}" style="${on?`background:${c};border-color:${STRIPE[k]||c};color:${tx||'#fff'}`:''}"><i style="background:${swatch(k)}"></i>${label||l}</button>`};
 function openPicker(){const m=mode,s=sel[m],fn=m==='el'?ptEls:lnEls;const infs=m==='flow'?['sewer','drain']:INFRA.map(i=>i[0]).filter(k=>fn(k).length);
   $('#psT').textContent=m==='flow'?'סוג זרימה':m==='el'?'תשתית ואלמנט':'קו חדש – תשתית וסוג';$('#psInf').innerHTML=infs.map(k=>chip(k,s.inf===k)).join('');
   $('#psElWrap').hidden=m==='flow';$('#psEl').innerHTML=m==='flow'?'':fn(s.inf).map(e=>`<button data-e="${e}" class="${s.el===e?'on':''}" style="${s.el===e?'background:var(--ink);border-color:var(--ink);color:#fff':''}">${e}</button>`).join('');sheet('pickS',true)}
@@ -643,7 +645,7 @@ $('#sf').addEventListener('submit',e=>{e.preventDefault();const q=$('#q').value.
   const ll=p?p.ll:r?r.ll:null;if(!ll)return toast('לא נמצאה נקודה '+q);follow=false;gpsBtn();map.flyTo({center:ll,zoom:21.5})});
 $('#bFit').onclick=()=>{follow=false;gpsBtn();fit()};
 $('#bLay').onclick=()=>{$('#layers').classList.toggle('open');$('#bLay').classList.toggle('on')};
-$('#layers').addEventListener('change',e=>{const k=e.target.dataset.k;vis[k]=e.target.checked?1:0;if(k==='snap'){LS.set('nosnap',vis.snap?'':'1');cur=null;update();return}if(k==='bg'){bgIds.forEach(id=>map.setLayoutProperty(id,'visibility',vis.bg?'visible':'none'));return}if(k!=='lbl')(k==='rec'?['rec','el','lns','lnsAir','strip','lnv','lnp','flow','flowArr']:[k]).forEach(id=>map.setLayoutProperty(id,'visibility',vis[k]?'visible':'none'));update()});
+$('#layers').addEventListener('change',e=>{const k=e.target.dataset.k;vis[k]=e.target.checked?1:0;if(k==='snap'){LS.set('nosnap',vis.snap?'':'1');cur=null;update();return}if(k==='bg'){bgIds.forEach(id=>map.setLayoutProperty(id,'visibility',vis.bg?'visible':'none'));return}if(k!=='lbl')(k==='rec'?['rec','el','lns','lnsStripe','lnsAir','strip','lnv','lnp','flow','flowArr']:[k]).forEach(id=>map.setLayoutProperty(id,'visibility',vis[k]?'visible':'none'));update()});
 $('#back').onclick=home;
 
 /* ---------- GPS ---------- */
@@ -676,7 +678,7 @@ let cRaf=0;function compassUi(){if(cRaf)return;cRaf=requestAnimationFrame(()=>{c
 
 /* ---------- camera ---------- */
 let camRec=null,stream=null,camFirst=null;
-const infBtns=(sel,first)=>{const L=first&&IC[first]?[IC[first],...INFRA.filter(i=>i[0]!==first)]:INFRA;return L.map(([k,l,c,tx])=>`<button data-k="${k}" class="${sel===k?'on':''}" style="${sel===k?`background:${c};border-color:${c};color:${tx||'#fff'}`:''}"><i style="background:${c}"></i>${l}</button>`).join('')};
+const infBtns=(sel,first)=>{const L=first&&IC[first]?[IC[first],...INFRA.filter(i=>i[0]!==first)]:INFRA;return L.map(([k,l,c,tx])=>`<button data-k="${k}" class="${sel===k?'on':''}" style="${sel===k?`background:${c};border-color:${STRIPE[k]||c};color:${tx||'#fff'}`:''}"><i style="background:${swatch(k)}"></i>${l}</button>`).join('')};
 async function openCam(r){camRec=r;screen('cam');$('#camName').textContent=r.name;camFirst=LS.get('lastInf');$('#camInf').innerHTML=infBtns(r.infra,camFirst);$('#camInf').scrollLeft=0;$('#camInf').hidden=typ(r)!=='mh';$('#strip').innerHTML='';$('#camErr').classList.remove('on');compassUi();
   try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1920}}});const v=$('#video');v.srcObject=stream;await v.play()}
   catch(e){$('#camErrT').textContent='אין גישה למצלמה בתוך האפליקציה';$('#camErr').classList.add('on')}}
@@ -868,12 +870,12 @@ async function sketchCanvas(o){const page=o.size==='A3'?[420,297]:[297,210],k=(o
   // documented items
   const R=[...recs.values()];
   for(const r of R.filter(r=>typ(r)==='line'&&r.pts.length>1)){const c=r.pts.map(p=>XY(p.xy)),col=colOf(r);g.beginPath();c.forEach(([u,v],i)=>i?g.lineTo(u,v):g.moveTo(u,v));
-    if(r.el==='רצועה'){g.save();g.globalAlpha=.25;g.strokeStyle=col;g.lineWidth=mm(2.2);g.stroke();g.restore()}g.strokeStyle=col;g.lineWidth=mm(.55);if(r.el===AIR)g.setLineDash([mm(2.2),mm(1.4)]);g.stroke();g.setLineDash([])}
+    if(r.el==='רצועה'){g.save();g.globalAlpha=.25;g.strokeStyle=col;g.lineWidth=mm(2.2);g.stroke();g.restore()}g.strokeStyle=col;g.lineWidth=mm(.55);if(r.el===AIR)g.setLineDash([mm(2.2),mm(1.4)]);g.stroke();g.setLineDash([]);if(STRIPE[r.infra]){g.strokeStyle=STRIPE[r.infra];g.lineWidth=mm(.35);g.setLineDash([mm(.8),mm(1.1)]);g.stroke();g.setLineDash([])}}
   for(const r of R.filter(r=>typ(r)==='line'))for(const p of r.pts){const[u,v]=XY(p.xy),single=r.pts.length===1;g.fillStyle=single?colOf(r):'#fff';g.strokeStyle=single?'#fff':colOf(r);g.lineWidth=mm(.25);g.beginPath();g.arc(u,v,mm(single?.9:.5),0,7);g.fill();g.stroke()}
   for(const r of R.filter(r=>typ(r)==='flow')){const[a,b]=[XY(r.a.xy),XY(r.b.xy)],col=colOf(r);g.strokeStyle=col;g.lineWidth=mm(.45);g.beginPath();g.moveTo(...a);g.lineTo(...b);g.stroke();
     const ang=Math.atan2(b[1]-a[1],b[0]-a[0]),mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,s=mm(1.6);g.save();g.translate(mx,my);g.rotate(ang);g.fillStyle=col;g.beginPath();g.moveTo(s,0);g.lineTo(-s*.8,-s*.7);g.lineTo(-s*.4,0);g.lineTo(-s*.8,s*.7);g.closePath();g.fill();g.restore()}
   for(const r of R.filter(r=>typ(r)==='el')){const[u,v]=XY(r.xy);drawSym(g,SHAPE[r.el]||'dot',u,v,mm(1.3),colOf(r))}
-  for(const r of R.filter(r=>typ(r)==='mh')){const[u,v]=XY(r.xy);g.fillStyle=colOf(r);g.strokeStyle='#fff';g.lineWidth=mm(.35);g.beginPath();g.arc(u,v,mm(1.2),0,7);g.fill();g.stroke()}
+  for(const r of R.filter(r=>typ(r)==='mh')){const[u,v]=XY(r.xy);g.fillStyle=colOf(r);g.strokeStyle=STRIPE[r.infra]||'#fff';g.lineWidth=mm(.35);g.beginPath();g.arc(u,v,mm(1.2),0,7);g.fill();g.stroke()}
   // labels (documented first, so they win the space)
   g.textBaseline='middle';g.textAlign='center';g.direction='rtl';const boxes=[];
   const put=(xy,text,size,w,col,dyMm)=>{if(text==null||text==='')return;const[u,v0]=XY(xy),v=v0+mm(dyMm);g.font=`${w} ${mm(size)}px Heebo,Arial,sans-serif`;const tw=g.measureText(text).width,b=[u-tw/2-2,v-mm(size)/2,tw+4,mm(size)];
@@ -902,7 +904,7 @@ async function sketchCanvas(o){const page=o.size==='A3'?[420,297]:[297,210],k=(o
   txt(new Date().toLocaleDateString('he-IL'),2.8,500,'#555');ly+=mm(5);txt(`קנה מידה 1:${scale} (${o.size})`,2.8,700);ly+=mm(5);txt('רשת ישראל החדשה (ITM)',2.4,500,'#555');ly+=mm(8);
   txt('מקרא',3.2,800);ly+=mm(5);
   const used=new Map();for(const r of R)if(r.infra){const k=r.infra;if(!used.has(k))used.set(k,new Set());used.get(k).add(typ(r)==='el'?r.el:typ(r)==='mh'?'שוחה':typ(r)==='flow'?'כיוון זרימה':r.el)}
-  for(const[k,set]of used){const c=IC[k][2];g.fillStyle=c;g.beginPath();g.arc(rx-mm(1.5),ly-mm(.3),mm(1.4),0,7);g.fill();g.save();g.translate(-mm(5),0);txt(`${IC[k][1]}: ${[...set].join(', ')}`,2.4,600,'#16191c');g.restore();ly+=mm(4.6)}
+  for(const[k,set]of used){const c=IC[k][2];g.fillStyle=c;g.beginPath();g.arc(rx-mm(1.5),ly-mm(.3),mm(1.4),0,7);g.fill();if(STRIPE[k]){g.fillStyle=STRIPE[k];g.beginPath();g.arc(rx-mm(1.5),ly-mm(.3),mm(1.4),-Math.PI/4,Math.PI*3/4);g.fill()}g.save();g.translate(-mm(5),0);txt(`${IC[k][1]}: ${[...set].join(', ')}`,2.4,600,'#16191c');g.restore();ly+=mm(4.6)}
   ly+=mm(2);const sym=(s,label,draw)=>{draw(rx-mm(1.5),ly-mm(.3));g.save();g.translate(-mm(5),0);txt(label,2.3,500,'#333');g.restore();ly+=mm(4.4)};
   const ELS=new Set(R.filter(r=>typ(r)==='el').map(r=>SHAPE[r.el]||'dot')),undoc=PT.some(p=>(p.k==='mh'||p.k==='mhtxt')&&!recByPt.has(p.id));
   if(undoc)sym('','שוחה מדודה שלא תועדה',(u,v)=>{g.strokeStyle='#d1261b';g.fillStyle='#fff';g.lineWidth=mm(.3);g.beginPath();g.arc(u,v,mm(.9),0,7);g.fill();g.stroke()});
@@ -940,7 +942,7 @@ $('#exS').addEventListener('click',e=>{const b=e.target.closest('[data-sz],[data
 $('#exGo').onclick=()=>($('#exS [data-fm].on').dataset.fm==='dxf'?makeDxf:makePdf)();
 $('#exShare').onclick=async()=>{if(!pdfFile)return;try{if(navigator.canShare&&navigator.canShare({files:[pdfFile]}))await navigator.share({files:[pdfFile],title:pdfFile.name});else $('#exOpen').click()}catch(e){if(e.name!=='AbortError')$('#exOpen').click()}};
 /* ---------- DXF export (R12, ITM coordinates – overlays directly on the surveyor's DWG) ---------- */
-const ACI={sewer:32,drain:140,water:5,bezeq:3,hot:30,cellcom:200,partner:130,unlimited:230,light:40,elec:1,hv:14,gas:2,comm:8,traffic:6,citycomm:90,irrig:94,other:9};
+const ACI={sewer:32,drain:140,water:5,bezeq:3,hot:30,cellcom:200,partner:130,unlimited:230,light:40,elec:1,hv:14,gas:2,comm:8,traffic:6,citycomm:90,irrig:94,ground:82,other:9};
 // AutoCAD draws text left-to-right, so Hebrew is stored in visual order (numbers/latin keep their direction)
 const visual=s=>{s=String(s??'');if(!/[֐-׿]/.test(s))return s;let r=[...s].reverse().join('');r=r.replace(/[0-9A-Za-z.]*[0-9A-Za-z][0-9A-Za-z.]*/g,m=>[...m].reverse().join(''));return r.replace(/[()]/g,c=>c=='('?')':'(')};
 const dxfStr=s=>visual(s).replace(/[^\x20-\x7e]/g,c=>'\\U+'+c.charCodeAt(0).toString(16).toUpperCase().padStart(4,'0'));
@@ -960,6 +962,7 @@ function buildDxf(th){const R=[...recs.values()],o=[],layers=new Map(),n=v=>(+v)
       else if(S==='dia')pline(ly,[[x,y+q],[x+q,y],[x,y-q],[x-q,y]],1);else if(S==='rect')pline(ly,[[x-q*1.4,y-q*.6],[x+q*1.4,y-q*.6],[x+q*1.4,y+q*.6],[x-q*1.4,y+q*.6]],1);else circle(ly,r.xy,q);
       text(tl,r.xy,r.el,th*.8,s*1.7)}
     else if(t==='line'){const pts=r.pts.map(p=>p.xy);if(pts.length>1)pline(lay(r,r.el==='רצועה'?'_STRIP':r.el===AIR?'_AIR':''),pts,0,r.el==='רצועה'?.5:0,r.el===AIR?'DASHED':0);else{circle(ly,pts[0],s*.4);e(0,'POINT',8,ly,10,n(pts[0][0]),20,n(pts[0][1]),30,0)}
+      if(STRIPE[r.infra]&&pts.length>1)pline(L('SH_'+r.infra.toUpperCase()+'_STRIPE',2),pts,0,0,'DASHED');
       r.pts.forEach(p=>{if(p.d!=null)text(L('SH_DEPTH',7),p.xy,Number(p.d).toFixed(2),th*.75,-s*1.2)})}
     else if(t==='flow'){const fl=lay(r,'_FLOW'),a=r.a.xy,b=r.b.xy;e(0,'LINE',8,fl,10,n(a[0]),20,n(a[1]),30,0,11,n(b[0]),21,n(b[1]),31,0);
       const ang=Math.atan2(b[1]-a[1],b[0]-a[0]),mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,al=s*1.5,c=Math.cos(ang),sn=Math.sin(ang),P2=(u,v)=>[mx+u*c-v*sn,my+u*sn+v*c];
