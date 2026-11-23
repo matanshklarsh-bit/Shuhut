@@ -956,6 +956,7 @@ async function buildDxf(th,bgFiles){const X=await import(DXFLIB),{DxfWriter,poin
   const fill=(layerName,pts,o={})=>{const bp=new HatchBoundaryPaths();bp.addPolylineBoundary(new HatchPolylineBoundary(pts.map(([x,y,bulge])=>({x,y,bulge:bulge||0}))));d.addHatch(bp,{name:'SOLID'},{layerName,...o})};
   const disc=(layerName,[x,y],r,o)=>fill(layerName,[[x-r,y,1],[x+r,y,1]],o);
   const depth=v=>'-'+Number(v).toFixed(2);
+  const ring=(layerName,xy,r,k)=>{if(STRIPE[k])disc(layerName,xy,r*1.45,{trueColor:TC(STRIPE[k])})};   // earthing: yellow ring around the green dot, as in the app
   // background photos first, so everything else is drawn on top; all of them share one image dictionary (AutoCAD keeps only one ACAD_IMAGE_DICT)
   let dict=null;const seen=new Set();
   for(const b of bgFiles||[]){const T=b.corners.map(c=>itmLL(c)),[tl,tr,br,bl]=T;let nm=b.file.replace(/\.[^.]+$/,'');while(seen.has(nm))nm+='1';seen.add(nm);
@@ -972,11 +973,11 @@ async function buildDxf(th,bgFiles){const X=await import(DXFLIB),{DxfWriter,poin
   // lines first, then points on top of them
   const order=r=>({line:0,flow:1,el:2,mh:3}[typ(r)]);
   for(const r of R.sort((a,b)=>order(a)-order(b))){const t=typ(r),ly=lay(r.infra),tl=lay(r.infra,'_TXT'),C=col(r.infra);
-    if(t==='mh'){grow(r.xy);note(r.infra,'mh');disc(ly,r.xy,s*.8,C);d.addCircle(P3(r.xy),s*.8,{layerName:ly,colorNumber:250});const pt=r.pt!=null?P.pts[r.pt]:null;
-      text(tl,r.xy,pt&&pt.name?pt.name:r.name.replace(/^ת\.ב\. /,''),th,s*1.8,C);if(r.d!=null)text(tl,r.xy,depth(r.d),th*.85,-s*1.8,C)}
+    if(t==='mh'){grow(r.xy);note(r.infra,'mh');ring(ly,r.xy,s*.8,r.infra);disc(ly,r.xy,s*.8,C);d.addCircle(P3(r.xy),STRIPE[r.infra]?s*1.15:s*.8,{layerName:ly,colorNumber:250});const pt=r.pt!=null?P.pts[r.pt]:null;
+      text(tl,r.xy,pt&&pt.name?pt.name:r.name.replace(/^ת\.ב\. /,'').replace(/^שוחה\s+/,'').replace(/\s*\d+$/,''),th,s*2.1,C);if(r.d!=null)text(tl,r.xy,depth(r.d),th*.85,-s*1.8,C)}
     else if(t==='el'){grow(r.xy);note(r.infra,'el');const[x,y]=r.xy,S=SHAPE[r.el]||'dot',q=s*.8,hollow=/o$/.test(S)||S==='ring';
       const shp=S.startsWith('sq')?[[x-q,y-q],[x+q,y-q],[x+q,y+q],[x-q,y+q]]:S.startsWith('tri')?[[x,y+q*1.1],[x+q,y-q*.7],[x-q,y-q*.7]]:S==='dia'?[[x,y+q],[x+q,y],[x,y-q],[x-q,y]]:S==='rect'?[[x-q*1.4,y-q*.6],[x+q*1.4,y-q*.6],[x+q*1.4,y+q*.6],[x-q*1.4,y+q*.6]]:null;
-      if(shp){if(!hollow)fill(ly,shp,C);poly(ly,shp,1,C)}else{if(!hollow)disc(ly,r.xy,q,C);d.addLWPolyline([{point:{x:x-q,y},bulge:1},{point:{x:x+q,y},bulge:1}],{layerName:ly,flags:1,constantWidth:W,...C})}
+      if(shp){if(!hollow)fill(ly,shp,C);poly(ly,shp,1,C)}else{if(!hollow){ring(ly,r.xy,q,r.infra);disc(ly,r.xy,q,C)}d.addLWPolyline([{point:{x:x-q,y},bulge:1},{point:{x:x+q,y},bulge:1}],{layerName:ly,flags:1,constantWidth:W,...C})}
       text(tl,r.xy,r.el,th*.85,s*1.9,C)}
     else if(t==='line'){const pts=r.pts.map(p=>p.xy),air=r.el===AIR;pts.forEach(grow);note(r.infra,air?'air':r.el==='רצועה'?'strip':'line');
       if(pts.length>1){const ll=air?L('SH_'+r.infra.toUpperCase()+'_AIR',ACI[r.infra],'DASHED'):lay(r.infra,r.el==='רצועה'?'_STRIP':'');
@@ -996,7 +997,7 @@ async function buildDxf(th,bgFiles){const X=await import(DXFLIB),{DxfWriter,poin
     text(LG,[x0-pad,y],'מקרא',th*1.6,0,ink,RT);y-=rh;text(LG,[x0-pad,y],P.name,th*.9,0,ink,RT);y-=rh;
     for(const k of K){const C=col(k),f=used.get(k);
       if(f.has('line')||f.has('strip')||f.has('air')||f.has('flow')){poly(LG,[[sx-th*2.2,y],[sx+th*2.2,y]],0,C);if(STRIPE[k])poly(LG,[[sx-th*2.2,y],[sx+th*2.2,y]],0,{trueColor:TC(STRIPE[k]),lineType:'DASHED',constantWidth:W*.6})}
-      if(f.has('mh')||f.has('el')){disc(LG,[sx,y],s*.7,C);d.addCircle(P3([sx,y]),s*.7,{layerName:LG,colorNumber:250})}
+      if(f.has('mh')||f.has('el')){ring(LG,[sx,y],s*.7,k);disc(LG,[sx,y],s*.7,C);d.addCircle(P3([sx,y]),s*.7,{layerName:LG,colorNumber:250})}
       text(LG,[tx,y],IC[k][1],th,0,ink,RT);y-=rh}
     for(const g of gen){const C={colorNumber:250};
       if(g==='air'){poly(LG,[[sx-th*2.2,y],[sx+th*2.2,y]],0,{...C,lineType:'DASHED'});text(LG,[tx,y],'קו עילי',th,0,ink,RT)}
