@@ -945,32 +945,65 @@ $('#exShare').onclick=async()=>{if(!pdfFile)return;const fs=[pdfFile,...pdfExtra
 /* ---------- DXF export (AutoCAD 2007 DXF, UTF-8, ITM coordinates – overlays directly on the surveyor's DWG) ---------- */
 const DXFLIB='https://cdn.jsdelivr.net/npm/@tarikjabiri/dxf@2.9.0/lib/index.mjs';
 const ACI={sewer:32,drain:140,water:5,bezeq:3,hot:30,cellcom:200,partner:130,unlimited:230,light:40,elec:1,hv:14,gas:2,comm:8,traffic:6,citycomm:90,irrig:94,ground:82,other:9};
-async function buildDxf(th,bgFiles){const X=await import(DXFLIB),{DxfWriter,point3d,Units,TextHorizontalAlignment:HA,TextVerticalAlignment:VA}=X;
-  const d=new DxfWriter();d.setUnits(Units.Meters);d.document.styleStandard.fontFileName='arial.ttf';d.addLType('DASHED','__ __ __',[2,-1.2]);
+async function buildDxf(th,bgFiles){const X=await import(DXFLIB),{DxfWriter,point3d,Units,TextHorizontalAlignment:HA,TextVerticalAlignment:VA,HatchBoundaryPaths,HatchPolylineBoundary}=X;
+  const d=new DxfWriter();d.setUnits(Units.Meters);d.setVariable('$DWGCODEPAGE',{3:'ANSI_1255'});d.document.styleStandard.fontFileName='arial.ttf';d.addLType('DASHED','__ __ __',[2,-1.2]);
   const R=[...recs.values()],made=new Set(),L=(name,color,lt)=>{if(!made.has(name)){d.addLayer(name,color,lt||'Continuous');made.add(name)}return name};
-  const lay=(r,suf='')=>L('SH_'+(r.infra||'unknown').toUpperCase()+suf,r.infra?ACI[r.infra]:7);
-  const P3=([x,y])=>point3d(x,y,0),s=th*.8;
-  const text=(layerName,[x,y],str,h,dy=0)=>{if(str==null||str==='')return;const p=point3d(x,y+dy,0);d.addText(p,h,String(str),{layerName,horizontalAlignment:HA?.Center??1,verticalAlignment:VA?.Middle??2,secondAlignmentPoint:p})};
-  const poly=(layerName,pts,closed,lineType)=>d.addLWPolyline(pts.map(([x,y])=>({point:{x,y}})),{layerName,flags:closed?1:0,...(lineType?{lineType}:{})});
+  const lay=(k,suf='')=>L('SH_'+(k||'unknown').toUpperCase()+suf,k?ACI[k]:7);
+  const TC=hex=>String(parseInt(hex.slice(1),16)),col=k=>({trueColor:TC(IC[k]?.[2]||'#8D8D8D')});
+  const P3=([x,y])=>point3d(x,y,0),s=th*.8,W=th*.35;   // W = drawn width of lines and outlines (metres)
+  const text=(layerName,[x,y],str,h,dy=0,o={},ha)=>{if(str==null||str==='')return;const p=point3d(x,y+dy,0);d.addText(p,h,String(str),{layerName,horizontalAlignment:ha??(HA?.Center??1),verticalAlignment:VA?.Middle??2,secondAlignmentPoint:p,...o})};
+  const poly=(layerName,pts,closed,o={})=>d.addLWPolyline(pts.map(([x,y])=>({point:{x,y}})),{layerName,flags:closed?1:0,constantWidth:W,...o});
+  const fill=(layerName,pts,o={})=>{const bp=new HatchBoundaryPaths();bp.addPolylineBoundary(new HatchPolylineBoundary(pts.map(([x,y,bulge])=>({x,y,bulge:bulge||0}))));d.addHatch(bp,{name:'SOLID'},{layerName,...o})};
+  const disc=(layerName,[x,y],r,o)=>fill(layerName,[[x-r,y,1],[x+r,y,1]],o);
   const depth=v=>'-'+Number(v).toFixed(2);
-  // background photos first, so everything else is drawn on top
-  for(const b of bgFiles||[]){const T=b.corners.map(c=>itmLL(c)),[tl,tr,br,bl]=T;const img=d.addImage(b.file,b.file.replace(/\.[^.]+$/,''),P3(bl),b.w,b.h,1,0,{layerName:L('SH_BACKGROUND',7)});
+  // background photos first, so everything else is drawn on top; all of them share one image dictionary (AutoCAD keeps only one ACAD_IMAGE_DICT)
+  let dict=null;const seen=new Set();
+  for(const b of bgFiles||[]){const T=b.corners.map(c=>itmLL(c)),[tl,tr,br,bl]=T;let nm=b.file.replace(/\.[^.]+$/,'');while(seen.has(nm))nm+='1';seen.add(nm);
+    const img=d.addImage(b.file,nm,P3(bl),b.w,b.h,1,0,{layerName:L('SH_BACKGROUND',7)});
     const u=[(br[0]-bl[0])/b.w,(br[1]-bl[1])/b.w],v=[(tl[0]-bl[0])/b.h,(tl[1]-bl[1])/b.h];img._uVector=()=>point3d(u[0],u[1],0);img._vVector=()=>point3d(v[0],v[1],0)}
-  for(const r of R){const t=typ(r),ly=lay(r),tl=lay(r,'_TXT');
-    if(t==='mh'){d.addCircle(P3(r.xy),s*.75,{layerName:ly});const pt=r.pt!=null?P.pts[r.pt]:null;
-      text(tl,r.xy,pt&&pt.name?pt.name:r.name.replace(/^ת\.ב\. /,''),th,s*1.6);if(r.d!=null)text(tl,r.xy,depth(r.d),th*.8,-s*1.6)}
-    else if(t==='el'){const[x,y]=r.xy,S=SHAPE[r.el]||'dot',q=s*.8;
-      if(S==='sq'||S==='sqo')poly(ly,[[x-q,y-q],[x+q,y-q],[x+q,y+q],[x-q,y+q]],1);else if(S==='tri'||S==='trio')poly(ly,[[x,y+q*1.1],[x+q,y-q*.7],[x-q,y-q*.7]],1);
-      else if(S==='dia')poly(ly,[[x,y+q],[x+q,y],[x,y-q],[x-q,y]],1);else if(S==='rect')poly(ly,[[x-q*1.4,y-q*.6],[x+q*1.4,y-q*.6],[x+q*1.4,y+q*.6],[x-q*1.4,y+q*.6]],1);else d.addCircle(P3(r.xy),q,{layerName:ly});
-      text(tl,r.xy,r.el,th*.8,s*1.7)}
-    else if(t==='line'){const pts=r.pts.map(p=>p.xy),air=r.el===AIR;
-      if(pts.length>1){const ll=air?L('SH_'+r.infra.toUpperCase()+'_AIR',ACI[r.infra],'DASHED'):lay(r,r.el==='רצועה'?'_STRIP':'');poly(ll,pts,0,air?'DASHED':0);
-        if(STRIPE[r.infra])poly(L('SH_'+r.infra.toUpperCase()+'_STRIPE',2,'DASHED'),pts,0,'DASHED')}
-      else d.addCircle(P3(pts[0]),s*.4,{layerName:ly});
-      r.pts.forEach(p=>{if(p.d!=null)text(tl,p.xy,depth(p.d),th*.75,-s*1.2)})}
-    else if(t==='flow'){const fl=lay(r,'_FLOW'),a=r.a.xy,b=r.b.xy;d.addLine(P3(a),P3(b),{layerName:fl});
-      const ang=Math.atan2(b[1]-a[1],b[0]-a[0]),mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,al=s*1.5,c=Math.cos(ang),sn=Math.sin(ang),Q=(u,v)=>[mx+u*c-v*sn,my+u*sn+v*c];
-      poly(fl,[Q(al*.6,0),Q(-al*.5,al*.4),Q(-al*.2,0),Q(-al*.5,-al*.4)],1)}}
+  {const ob=d.document.objects,root=ob.root,ents=root.entries.filter(e=>e.name==='ACAD_IMAGE_DICT');
+    if(ents.length>1){const keep=ob.objects.find(o=>o.handle===ents[0].entryObjectHandle);
+      for(const e of ents.slice(1)){const dd=ob.objects.find(o=>o.handle===e.entryObjectHandle);
+        for(const x of dd.entries){keep.entries.push(x);const def=ob.objects.find(o=>o.handle===x.entryObjectHandle);def.ownerObjecthandle=keep.handle;def.acadImageDictHandle=keep.handle}
+        ob.objects.splice(ob.objects.indexOf(dd),1)}
+      root.entries=root.entries.filter(e=>e.name!=='ACAD_IMAGE_DICT'||e===ents[0])}}
+  const used=new Map(),note=(k,f)=>{if(!k)return;if(!used.has(k))used.set(k,new Set());used.get(k).add(f)};
+  let ext=[1e12,1e12,-1e12,-1e12];const grow=([x,y])=>{ext=[Math.min(ext[0],x),Math.min(ext[1],y),Math.max(ext[2],x),Math.max(ext[3],y)]};
+  // lines first, then points on top of them
+  const order=r=>({line:0,flow:1,el:2,mh:3}[typ(r)]);
+  for(const r of R.sort((a,b)=>order(a)-order(b))){const t=typ(r),ly=lay(r.infra),tl=lay(r.infra,'_TXT'),C=col(r.infra);
+    if(t==='mh'){grow(r.xy);note(r.infra,'mh');disc(ly,r.xy,s*.8,C);d.addCircle(P3(r.xy),s*.8,{layerName:ly,colorNumber:250});const pt=r.pt!=null?P.pts[r.pt]:null;
+      text(tl,r.xy,pt&&pt.name?pt.name:r.name.replace(/^ת\.ב\. /,''),th,s*1.8,C);if(r.d!=null)text(tl,r.xy,depth(r.d),th*.85,-s*1.8,C)}
+    else if(t==='el'){grow(r.xy);note(r.infra,'el');const[x,y]=r.xy,S=SHAPE[r.el]||'dot',q=s*.8,hollow=/o$/.test(S)||S==='ring';
+      const shp=S.startsWith('sq')?[[x-q,y-q],[x+q,y-q],[x+q,y+q],[x-q,y+q]]:S.startsWith('tri')?[[x,y+q*1.1],[x+q,y-q*.7],[x-q,y-q*.7]]:S==='dia'?[[x,y+q],[x+q,y],[x,y-q],[x-q,y]]:S==='rect'?[[x-q*1.4,y-q*.6],[x+q*1.4,y-q*.6],[x+q*1.4,y+q*.6],[x-q*1.4,y+q*.6]]:null;
+      if(shp){if(!hollow)fill(ly,shp,C);poly(ly,shp,1,C)}else{if(!hollow)disc(ly,r.xy,q,C);d.addLWPolyline([{point:{x:x-q,y},bulge:1},{point:{x:x+q,y},bulge:1}],{layerName:ly,flags:1,constantWidth:W,...C})}
+      text(tl,r.xy,r.el,th*.85,s*1.9,C)}
+    else if(t==='line'){const pts=r.pts.map(p=>p.xy),air=r.el===AIR;pts.forEach(grow);note(r.infra,air?'air':r.el==='רצועה'?'strip':'line');
+      if(pts.length>1){const ll=air?L('SH_'+r.infra.toUpperCase()+'_AIR',ACI[r.infra],'DASHED'):lay(r.infra,r.el==='רצועה'?'_STRIP':'');
+        poly(ll,pts,0,{...C,constantWidth:r.el==='רצועה'?W*2:W,...(air?{lineType:'DASHED'}:{})});
+        if(STRIPE[r.infra])poly(L('SH_'+r.infra.toUpperCase()+'_STRIPE',2,'DASHED'),pts,0,{trueColor:TC(STRIPE[r.infra]),lineType:'DASHED',constantWidth:W*.6})}
+      else disc(ly,pts[0],s*.45,C);
+      r.pts.forEach(p=>{if(p.d!=null)text(tl,p.xy,depth(p.d),th*.8,-s*1.3,C)})}
+    else if(t==='flow'){note(r.infra,'flow');const fl=lay(r.infra,'_FLOW'),a=r.a.xy,b=r.b.xy;grow(a);grow(b);poly(fl,[a,b],0,C);
+      const ang=Math.atan2(b[1]-a[1],b[0]-a[0]),mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,al=s*2,c=Math.cos(ang),sn=Math.sin(ang),Q=(u,v)=>[mx+u*c-v*sn,my+u*sn+v*c];
+      fill(fl,[Q(al*.6,0),Q(-al*.5,al*.45),Q(-al*.2,0),Q(-al*.5,-al*.45)],C)}}
+  // legend to the right of the documented area, on a white panel
+  if(used.size){const LG=L('SH_LEGEND',7),rh=th*3,pad=th*2,wd=th*22,K=INFRA.map(i=>i[0]).filter(k=>used.has(k));
+    const gen=[];const any=f=>[...used.values()].some(v=>v.has(f));if(any('air'))gen.push('air');if(any('strip'))gen.push('strip');if(any('flow'))gen.push('flow');gen.push('depth');
+    const n=2+K.length+gen.length+.6,x1=ext[2]+th*10,y1=ext[3],x0=x1+wd,y0=y1-n*rh-pad,box=[[x1,y0],[x0,y0],[x0,y1],[x1,y1]];
+    fill(LG,box,{colorNumber:255});poly(LG,box,1,{colorNumber:250,constantWidth:W*.6});
+    const ink={colorNumber:250},sx=x0-pad-th*3,tx=sx-th*3.5,RT=HA?.Right??2;let y=y1-pad;
+    text(LG,[x0-pad,y],'מקרא',th*1.6,0,ink,RT);y-=rh;text(LG,[x0-pad,y],P.name,th*.9,0,ink,RT);y-=rh;
+    for(const k of K){const C=col(k),f=used.get(k);
+      if(f.has('line')||f.has('strip')||f.has('air')||f.has('flow')){poly(LG,[[sx-th*2.2,y],[sx+th*2.2,y]],0,C);if(STRIPE[k])poly(LG,[[sx-th*2.2,y],[sx+th*2.2,y]],0,{trueColor:TC(STRIPE[k]),lineType:'DASHED',constantWidth:W*.6})}
+      if(f.has('mh')||f.has('el')){disc(LG,[sx,y],s*.7,C);d.addCircle(P3([sx,y]),s*.7,{layerName:LG,colorNumber:250})}
+      text(LG,[tx,y],IC[k][1],th,0,ink,RT);y-=rh}
+    for(const g of gen){const C={colorNumber:250};
+      if(g==='air'){poly(LG,[[sx-th*2.2,y],[sx+th*2.2,y]],0,{...C,lineType:'DASHED'});text(LG,[tx,y],'קו עילי',th,0,ink,RT)}
+      else if(g==='strip'){poly(LG,[[sx-th*2.2,y],[sx+th*2.2,y]],0,{...C,constantWidth:W*2});text(LG,[tx,y],'רצועה',th,0,ink,RT)}
+      else if(g==='flow'){const a=th*1.6;fill(LG,[[sx+a*.6,y],[sx-a*.5,y+a*.45],[sx-a*.2,y],[sx-a*.5,y-a*.45]],C);text(LG,[tx,y],'כיוון זרימה',th,0,ink,RT)}
+      else{text(LG,[sx,y],'-1.20',th*.85,0,C);text(LG,[tx,y],"עומק (מ')",th,0,ink,RT)}
+      y-=rh}}
   return d.stringify()}
 async function makeDxf(){const th=+($('#exS .on[data-th]')?.dataset.th||.4),withBg=$('#exBg').checked&&!$('#exBgRow').hidden;$('#exGo').disabled=true;$('#exOut').hidden=true;$('#exMsg').textContent='מכין DXF…';
   try{if(!recs.size)throw new Error('אין עדיין תיעוד בפרויקט');
@@ -978,6 +1011,8 @@ async function makeDxf(){const th=+($('#exS .on[data-th]')?.dataset.th||.4),with
     // background photos go next to the DXF as JPG files; the DXF points to them by file name
     const bgFiles=[],files=[];if(withBg){let i=0;for(const b of await byIdx('bgs','pid',P.id))for(const tl of b.tiles){i++;const bm=await createImageBitmap(tl.blob),file=`${base} רקע ${i}.jpg`;
       bgFiles.push({file,corners:tl.corners,w:bm.width,h:bm.height});files.push(new File([tl.blob],file,{type:'image/jpeg'}))}}
+    // two background files with the same name: the smaller one gets a trailing 1
+    for(let i=0;i<files.length;i++)for(let j=i+1;j<files.length;j++)if(files[i].name===files[j].name){const k=files[i].size<=files[j].size?i:j,nm=files[k].name.replace(/(\.[^.]+)$/,'1$1');files[k]=new File([files[k]],nm,{type:'image/jpeg'});bgFiles[k].file=nm}
     const txt=await buildDxf(th,bgFiles),blob=new Blob([txt],{type:'application/dxf'}),name=base+'.dxf';
     pdfFile=new File([blob],name,{type:'application/dxf'});pdfExtra=files;$('#exOpen').href=URL.createObjectURL(blob);$('#exOpen').setAttribute('download',name);
     $('#exMsg').textContent=`מוכן: ${recs.size} פריטים${files.length?` + ${files.length} תמונות רקע`:''} · נ"צ ישראל (ITM)`;$('#exOut').hidden=false;
