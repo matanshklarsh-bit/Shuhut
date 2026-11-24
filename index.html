@@ -348,10 +348,16 @@ function convertDb(dbx,fname){
     else if(e.type==='CIRCLE')lines.push({l:e.layer,c:arcP(e.center.x,e.center.y,e.radius,0,2*Math.PI)});
     else if(e.type==='INSERT'){const a={};for(const t of e.attribs||[])a[t.tag]=fixTxt(t.text?.text);
       if(a.PLAN_NUM)plan=a.PLAN_NUM;if(e.name==='HEB_SURVEY'||e.name==='VER'||/1210$/.test(e.name))continue;
-      const p=e.insertionPoint;if(!p)continue;let k='lbl';const name=a.NAME||'',h=a.HEIGHT||'';
-      if(/^M48/.test(e.name))k='mh';else if(e.name==='M4411')k='sign';else if(e.name==='M4402')k='pole';else if(e.name==='M1502')k='h';else if(/^ת\.|קולטן|שוחה/.test(name))k='mhtxt';
+      const p=e.insertionPoint;if(!p)continue;let k='lbl';const name=a.NAME||a.MARK||'',h=a.HEIGHT||'',code=e.name.replace(/_[A-Z]$/,'');   // some surveyors add _E/_P/_S/_A to the MAPI code
+      if(/^M4[89]/.test(code)&&e.attribs?.length)k='mh';else if(code==='M4411')k='sign';else if(code==='M4402')k='pole';else if(code==='M1502')k='h';else if(/^ת\.|קולטן|שוחה/.test(name))k='mhtxt';
       pts.push({k,code:e.name,name,h,x:+p.x.toFixed(3),y:+p.y.toFixed(3),ll:tw(p.x,p.y)})}}
   if(!pts.length&&!lines.length)throw new Error('לא נמצאו אובייקטים בקובץ');
+  // objects lying outside Israel's grid (a stray block near 0,0, a title block drawn far away) are dropped instead of failing the whole file
+  const inIL=([x,y])=>x>=100000&&x<=300000&&y>=350000&&y<=800000,n0=pts.length+lines.length;
+  for(let i=pts.length-1;i>=0;i--)if(!inIL([pts[i].x,pts[i].y]))pts.splice(i,1);
+  for(let i=lines.length-1;i>=0;i--)if(!lines[i].c.every(inIL))lines.splice(i,1);
+  if(!pts.length&&!lines.length)throw new Error('הקואורדינטות לא בנ״צ ישראל (ITM)');
+  const skipped=n0-pts.length-lines.length;if(skipped)console.warn('DWG: skipped',skipped,'objects outside ITM');
   const xs=[],ys=[];pts.forEach(p=>{xs.push(p.x);ys.push(p.y)});lines.forEach(l=>l.c.forEach(c=>{xs.push(c[0]);ys.push(c[1])}));
   const mnx=Math.min(...xs),mxx=Math.max(...xs),mny=Math.min(...ys),mxy=Math.max(...ys);
   if(mnx<100000||mxx>300000||mny<350000||mxy>800000)throw new Error('הקואורדינטות לא בנ״צ ישראל (ITM)');
