@@ -349,7 +349,7 @@ function convertDb(dbx,fname){
     else if(e.type==='INSERT'){const a={};for(const t of e.attribs||[])a[t.tag]=fixTxt(t.text?.text);
       if(a.PLAN_NUM)plan=a.PLAN_NUM;if(e.name==='HEB_SURVEY'||e.name==='VER'||/1210$/.test(e.name))continue;
       const p=e.insertionPoint;if(!p)continue;let k='lbl';const name=a.NAME||a.MARK||'',h=a.HEIGHT||'',code=e.name.replace(/_[A-Z]$/,'');   // some surveyors add _E/_P/_S/_A to the MAPI code
-      if(/^M4[89]/.test(code)&&e.attribs?.length)k='mh';else if(code==='M4411')k='sign';else if(code==='M4402')k='pole';else if(code==='M1502')k='h';else if(/^ת\.|קולטן|שוחה/.test(name))k='mhtxt';
+      if((/^M4[89]/.test(code)||code==='M5220'||code==='M4001')&&e.attribs?.length)k='mh';   // M5220 כוך, M4001 גוב/תאelse if(code==='M4411')k='sign';else if(code==='M4402')k='pole';else if(code==='M1502')k='h';else if(/^ת\.|קולטן|שוחה/.test(name))k='mhtxt';
       pts.push({k,code:e.name,name,h,x:+p.x.toFixed(3),y:+p.y.toFixed(3),ll:tw(p.x,p.y)})}}
   if(!pts.length&&!lines.length)throw new Error('לא נמצאו אובייקטים בקובץ');
   // objects lying outside Israel's grid (a stray block near 0,0, a title block drawn far away) are dropped instead of failing the whole file
