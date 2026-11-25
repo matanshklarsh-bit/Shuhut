@@ -177,8 +177,9 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
   <header><h1>שוחות<small>תיעוד שוחות על גבי מדידה</small></h1></header>
   <main>
     <div style="display:flex;gap:8px"><label class="big" for="dwgIn" style="flex:1"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg>טעינת קובץ</label><button class="big" id="pasteBtn" style="flex:1;background:#0061FE">הדבק קישור מדרופבוקס</button></div>
+    <button class="big" id="newBlank" style="width:100%;margin-top:8px;background:#fff;color:var(--ink);border:1px solid var(--line)">+ פרויקט חדש בלי רקע</button>
     <input type="file" id="dwgIn" multiple accept=".dwg,.png,.jpg,.jpeg,.tif,.tiff,.pgw,.jgw,.tfw,.wld,application/acad,application/octet-stream,image/*" hidden>
-    <p class="hint" style="margin-top:8px">DWG של מדידה, או תמונה מעוגנת (למשל ייצוא מ-GovMap: התמונה יחד עם קובץ ה-pgw/jgw, או GeoTIFF).</p>
+    <p class="hint" style="margin-top:8px">DWG של מדידה, או תמונה מעוגנת (למשל ייצוא מ-GovMap: התמונה יחד עם קובץ ה-pgw/jgw, או GeoTIFF). פרויקט בלי רקע נפתח לפי המיקום שלך על מפת רחובות, ואפשר להוסיף לו תצ״א מעוגנת אחר כך.</p>
     <div id="imp"></div>
     <div id="plist"></div>
     <div class="dbx"><b>דרופבוקס</b><span id="dbxStat"></span>
@@ -207,7 +208,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
     <form class="search" id="sf"><input id="q" inputmode="numeric" placeholder="מס׳ נקודה" aria-label="חיפוש לפי מספר נקודה"></form>
   </header>
   <div id="wrap">
-    <div id="map"></div>
+    <div id="map"></div><div id="osmAttr" hidden style="position:absolute;left:4px;bottom:2px;z-index:2;font-size:10px;color:#555;background:#fff9;padding:0 4px;border-radius:4px;direction:ltr">© OpenStreetMap</div>
     <canvas id="lbl"></canvas>
     <svg id="cross" viewBox="0 0 46 46" aria-hidden="true"><g fill="none" stroke-linecap="round"><g stroke="#fff" stroke-width="5"><path d="M23 2v13M23 31v13M2 23h13M31 23h13"/><circle cx="23" cy="23" r="9"/></g><g id="cg" stroke="#16191c" stroke-width="2.2"><path d="M23 2v13M23 31v13M2 23h13M31 23h13"/><circle cx="23" cy="23" r="9"/></g></g></svg>
     <div class="side">
@@ -227,6 +228,8 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
       <div id="bgBox" hidden><label><input type="checkbox" data-k="bg" checked><span class="dot" style="background:linear-gradient(135deg,#6f8a5e,#c8b07e)"></span>תצלום רקע</label>
         <div style="padding:0 12px 6px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute)">שקיפות<input type="range" id="bgOp" min="0.2" max="1" step="0.1" style="flex:1;accent-color:var(--blue)"></div><div id="bgList"></div></div>
       <label><input type="checkbox" data-k="lbl" checked><span class="dot" style="border:2px solid var(--mute)"></span>כיתובים</label>
+      <div style="padding:8px 12px;display:flex;gap:8px"><label class="pri" for="bgIn" style="flex:1;text-align:center;padding:10px;border-radius:12px;background:var(--blue);color:#fff;font-weight:600">תצ״א מקובץ</label><button id="bgLink" style="flex:1;padding:10px;border-radius:12px;background:#0061FE;color:#fff;border:0;font:inherit;font-weight:600">תצ״א מדרופבוקס</button></div>
+      <input type="file" id="bgIn" multiple accept=".png,.jpg,.jpeg,.tif,.tiff,.pgw,.jgw,.tfw,.wld,image/*,application/octet-stream" hidden>
     </div>
     <div id="card">
       <div id="modes"><button data-m="mh">שוחה</button><button data-m="el">אלמנט</button><button data-m="line">קו</button><button data-m="flow">זרימה</button></div>
@@ -277,7 +280,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
   <input id="linkIn" placeholder="https://www.dropbox.com/…" autocomplete="off" autocapitalize="off" spellcheck="false"><div class="acts"><button class="pri" id="linkGo">טען</button></div></div></div>
 <div class="sheet" id="fldS" role="dialog" aria-label="קבצים בתיקייה"><h2><span id="fldT">תיקייה</span><button data-close>סגור</button></h2><div class="sbody" id="fldL"></div></div>
 <div class="sheet" id="tgtS" role="dialog" aria-label="לאן לטעון"><h2><span id="tgtT">לאן לטעון?</span><button id="tgtX">ביטול</button></h2><div class="sbody" id="tgtL"></div></div>
-<div class="sheet" id="renS" role="dialog" aria-label="שם הפרויקט"><h2><span>שם הפרויקט</span><button data-close>סגור</button></h2><div class="sbody">
+<div class="sheet" id="renS" role="dialog" aria-label="שם הפרויקט"><h2><span id="renT">שם הפרויקט</span><button data-close>סגור</button></h2><div class="sbody">
   <input id="renIn" style="width:100%;font:16px Heebo,sans-serif;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)" autocomplete="off"><div class="acts"><button class="pri" id="renGo">שמור</button></div></div></div>
 <div class="sheet" id="exS" role="dialog" aria-label="ייצוא PDF"><h2><span>ייצוא</span><button data-close>סגור</button></h2><div class="sbody">
   <div class="inf" id="exFmt"><button data-fm="pdf" class="on">PDF – סקיצה</button><button data-fm="dxf">DXF – לאוטוקאד</button></div>
@@ -396,8 +399,13 @@ function chooseTarget(imgName){return new Promise(async res=>{const ps=(await al
   $('#tgtT').textContent='לאן לטעון את '+imgName+'?';
   $('#tgtL').innerHTML=`<div class="row" data-t="new"><span class="ph" style="display:grid;place-items:center;font-size:26px">+</span><div><b>פרויקט חדש מהתמונה</b><span>בלי מדידה – התמונה היא הרקע</span></div></div>`+ps.map(p=>`<div class="row" data-t="${p.id}"><span class="ph"></span><div><b>${esc(p.name)}</b><span>${p.id===last?'הפרויקט האחרון שפתחת':'הוסף כרקע'}</span></div></div>`).join('');
   const done=v=>{$('#tgtL').onclick=null;$('#tgtX').onclick=null;sheet('tgtS',false);res(v)};$('#tgtL').onclick=e=>{const r=e.target.closest('[data-t]');if(r)done(r.dataset.t)};$('#tgtX').onclick=()=>done(null);sheet('tgtS',true)})}
-async function addImage(img,world){const bg=await makeBackground(img,world);st('');let pid=await chooseTarget(img.name);if(!pid)return;
+let bgTarget=null;   // set while adding an aerial from inside an open project
+async function addImage(img,world){const bg=await makeBackground(img,world);st('');let pid=bgTarget||await chooseTarget(img.name);bgTarget=null;if(!pid)return;
   if(pid==='new'){const p={id:uid(),name:img.name.replace(/\.[^.]+$/,''),plan:'',file:img.name,created:Date.now(),lines:[],pts:[],ref:bg.ref};await put('projects',p);pid=p.id}
+  const tp=await get('projects',pid);
+  if(tp&&tp.blank&&!(await byIdx('bgs','pid',pid)).length){   // first aerial of a project opened without a background: take its exact georeference
+    tp.ref=bg.ref;await put('projects',tp);A=affine(tp.ref);
+    for(const r of await byIdx('records','pid',pid)){const fix=o=>{if(o&&typeof o==='object'){if(Array.isArray(o.ll)&&Array.isArray(o.xy))o.xy=itmLL(o.ll).map(v=>+v.toFixed(3));Object.values(o).forEach(fix)}};fix(r);r.dirty=1;await put('records',r)}}
   await put('bgs',{id:uid(),pid,name:bg.name,res:bg.res,created:Date.now(),tiles:bg.tiles});toast(`נטען רקע: ${bg.name} · ${bg.res.toFixed(2)} מ׳ לפיקסל`);await home();openProject(pid)}
 // a list of {name, blob}; pairs images with their world files by name
 async function handleFiles(list){try{
@@ -405,6 +413,12 @@ async function handleFiles(list){try{
   const imgs=list.filter(f=>IMG.test(f.name));if(!imgs.length)throw new Error(list.some(f=>WORLD.test(f.name))?'נבחר רק קובץ עיגון – צריך גם את התמונה':'לא נמצא קובץ DWG או תמונה');
   for(const img of imgs)await addImage(img,list.find(w=>WORLD.test(w.name)&&base(w.name)===base(img.name)))}
   catch(err){console.error(err);const m=String(err.message||err);st(/wasm|fetch|Failed to load|import/i.test(m)?'שגיאה: מנוע קריאת ה-DWG לא נטען. ודא שיש אינטרנט ונסה שוב. ('+m.slice(0,80)+')':'שגיאה: '+m)}}
+$('#bgIn').addEventListener('change',async e=>{const fs=[...e.target.files].map(f=>({name:f.name,blob:f}));e.target.value='';if(!fs.length||!P)return;$('#layers').classList.remove('open');$('#bLay').classList.remove('on');
+  if(fs.some(f=>/\.dwg$/i.test(f.name)))return toast('כאן מוסיפים רק תצ״א – DWG נטען ממסך הפרויקטים');
+  bgTarget=P.id;toast('מכין את התמונה…');st('');await handleFiles(fs);bgTarget=null;const m=$('#imp').textContent;if(/^שגיאה/.test(m))toast(m)});
+$('#bgLink').onclick=async()=>{if(!P)return;let t='';try{t=await navigator.clipboard.readText()}catch(e){}const m=t&&t.match(DBXURL);
+  if(!m)return toast('העתק קודם בדרופבוקס קישור לתיקייה של התצ״א (שתף ← העתק קישור)');$('#layers').classList.remove('open');$('#bLay').classList.remove('on');
+  bgTarget=P.id;toast('מוריד מדרופבוקס…');st('');await fromLink(m[0]);const e=$('#imp').textContent;if(/^שגיאה|^זו תמונה/.test(e)){bgTarget=null;toast(e)}};
 $('#dwgIn').addEventListener('change',async e=>{const fs=[...e.target.files].map(f=>({name:f.name,blob:f}));e.target.value='';if(fs.length)handleFiles(fs)});
 // Dropbox shared links
 async function dbxLinkFile(url,path,retry=true){const t=await dbxToken();const r=await fetch('https://content.dropboxapi.com/2/sharing/get_shared_link_file',{method:'POST',headers:{Authorization:'Bearer '+t,'Dropbox-API-Arg':hdr(path?{url,path}:{url})}});
@@ -420,6 +434,13 @@ function showFolder(url,name,fs){const imgs=fs.filter(f=>IMG.test(f.name)),items
   $('#fldL').onclick=async e=>{const r=e.target.closest('[data-i]');if(!r)return;const it=items[+r.dataset.i];sheet('fldS',false);
     try{const got=[];for(const f of it.files){st('מוריד את '+f.name+'…');got.push({name:f.name,blob:await dbxLinkFile(url,'/'+f.name)})}handleFiles(got)}catch(err){console.error(err);st('שגיאה: '+linkErr(err).message)}};sheet('fldS',true)}
 const DBXURL=/https?:\/\/(www\.)?dropbox\.com\/\S+/i;
+$('#newBlank').onclick=()=>{$('#renT').textContent='פרויקט חדש';$('#renIn').value='';sheet('renS',true);setTimeout(()=>$('#renIn').focus(),250);
+  $('#renGo').onclick=async()=>{const n=$('#renIn').value.trim();if(!n)return toast('הקלד שם');sheet('renS',false);$('#renT').textContent='שם הפרויקט';
+    st('מאתר את המיקום שלך…');let c=null;try{c=await new Promise((res,rej)=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>res([p.coords.longitude,p.coords.latitude]),rej,{enableHighAccuracy:true,timeout:15000,maximumAge:60000}):rej())}catch(e){}
+    try{await needProj4()}catch(e){st('שגיאה: אין אינטרנט לטעינת רכיב הקואורדינטות');return}
+    const inIL=c&&c[0]>34.2&&c[0]<35.9&&c[1]>29.4&&c[1]<33.4;if(!inIL)c=[34.8,32.08];
+    const [x,y]=proj4('EPSG:4326','EPSG:2039',c),ref=[[x,y],[x+500,y],[x,y+500]].map(([X,Y])=>{const l=proj4('EPSG:2039','EPSG:4326',[X,Y]);return{x:X,y:Y,ll:[+l[0].toFixed(8),+l[1].toFixed(8)]}});
+    const p={id:uid(),name:n,plan:'',file:'',created:Date.now(),lines:[],pts:[],ref,blank:true};await put('projects',p);st(inIL?'':'לא התקבל מיקום – המפה נפתחה במרכז הארץ. גרור אליך או לחץ על כפתור המיקום.');await home();openProject(p.id)}};
 $('#pasteBtn').onclick=async()=>{let t='';try{t=await navigator.clipboard.readText()}catch(e){}const m=t&&t.match(DBXURL);
   if(m)return fromLink(m[0]);$('#linkIn').value='';sheet('linkS',true);setTimeout(()=>$('#linkIn').focus(),250)};
 $('#linkGo').onclick=()=>{const m=$('#linkIn').value.match(DBXURL);if(!m)return toast('זה לא קישור של דרופבוקס');sheet('linkS',false);fromLink(m[0])};
@@ -454,6 +475,7 @@ function initMap(){map=new maplibregl.Map({container:'map',style:{version:8,sour
   map.touchZoomRotate.disableRotation();map.keyboard.disableRotation();map.addControl(new maplibregl.ScaleControl({unit:'metric'}),'bottom-left');
   mapReady=new Promise(res=>map.on('load',()=>{
     ['ln','pt','rec','el','lns','lnv','flow','band','acc','me'].forEach(s=>map.addSource(s,{type:'geojson',data:fc([])}));
+    map.addSource('osm',{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19});
     map.on('styleimagemissing',e=>{if(!map.hasImage(e.id))map.addImage(e.id,makeIcon(e.id),{pixelRatio:2})});
     const R=(a,b)=>['interpolate',['linear'],['zoom'],16,a,22,b];
     map.addLayer({id:'ln',type:'line',source:'ln',paint:{'line-color':['match',['slice',['get','l'],0,3],'M24','#33383d','M22','#33383d','#8c9197'],'line-width':['interpolate',['linear'],['zoom'],16,.6,20,1.4,23,2.6]}});
@@ -483,10 +505,14 @@ async function openProject(id){activeLine=null;flowFrom=null;const p=await get('
   map.getSource('ln').setData(fc(p.lines.map(l=>({type:'Feature',properties:{l:l.l},geometry:{type:'LineString',coordinates:l.c}}))));
   map.getSource('pt').setData(fc(PT.map(x=>({type:'Feature',properties:{k:x.k},geometry:{type:'Point',coordinates:x.ll}}))));
   const bgs=await byIdx('bgs','pid',p.id);await drawBgs(bgs);
+  const street=!bgs.length&&!p.lines.length&&!p.pts.length;   // no survey and no aerial: show a street map so the field work has a reference
+  if(!map.getLayer('osm'))map.addLayer({id:'osm',type:'raster',source:'osm',paint:{'raster-opacity':.85}},'ln');map.setLayoutProperty('osm','visibility',street?'visible':'none');$('#osmAttr').hidden=!street;
   let lo=[180,90,-180,-90];const ext=c=>{lo=[Math.min(lo[0],c[0]),Math.min(lo[1],c[1]),Math.max(lo[2],c[0]),Math.max(lo[3],c[1])]};PT.forEach(x=>ext(x.ll));
   if(!PT.length)p.lines.forEach(l=>l.c.forEach(ext));if(!PT.length&&!p.lines.length)bgs.forEach(b=>b.tiles.forEach(tl=>tl.corners.forEach(ext)));if(lo[0]>lo[2])p.ref.forEach(r=>ext(r.ll));
-  B=[[lo[0],lo[1]],[lo[2],lo[3]]];map.setMaxBounds([[lo[0]-.02,lo[1]-.02],[lo[2]+.02,lo[3]+.02]]);fit(false);
-  await loadRecs();update()}
+  await loadRecs();
+  if(street&&recs.size){lo=[180,90,-180,-90];const w=o=>{if(o&&typeof o==='object'){if(Array.isArray(o.ll))ext(o.ll);Object.values(o).forEach(w)}};recs.forEach(w)}   // a project without background is framed by what was documented
+  farMg=p.blank&&!bgs.length?.3:.02;B=[[lo[0],lo[1]],[lo[2],lo[3]]];map.setMaxBounds([[lo[0]-farMg,lo[1]-farMg],[lo[2]+farMg,lo[3]+farMg]]);fit(false);update()}
+let farMg=.02;
 const fit=(anim=true)=>map.fitBounds(B,{padding:{top:60,bottom:240,left:20,right:70},animate:anim});
 /* ---------- elements, lines, flow (element lists as in Medidot) ---------- */
 const TEL=['שוחה','ע.ט','ארון','קו','רצועה'];
@@ -667,7 +693,10 @@ function onPos(p){const{longitude:lng,latitude:lat,accuracy:acc}=p.coords;const 
   map.getSource('me').setData(fc([{type:'Feature',properties:{},geometry:{type:'Point',coordinates:me}}]));
   const R=acc/111320,ring=Array.from({length:49},(_,i)=>{const a=i/48*2*Math.PI;return[lng+R*Math.cos(a)/Math.cos(lat*Math.PI/180),lat+R*Math.sin(a)]});
   map.getSource('acc').setData(fc([{type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:[ring]}}]));
-  const far=lng<B[0][0]-.02||lng>B[1][0]+.02||lat<B[0][1]-.02||lat>B[1][1]+.02;
+  if(P&&P.blank&&!recs.size&&!bgIds.length&&first&&window.proj4){   // empty project without background: move it to where you stand
+    const[x,y]=proj4('EPSG:4326','EPSG:2039',me);P.ref=[[x,y],[x+500,y],[x,y+500]].map(([X,Y])=>{const l=proj4('EPSG:2039','EPSG:4326',[X,Y]);return{x:X,y:Y,ll:[+l[0].toFixed(8),+l[1].toFixed(8)]}});
+    A=affine(P.ref);put('projects',P);const g=.3;B=[me,me];map.setMaxBounds([[me[0]-g,me[1]-g],[me[0]+g,me[1]+g]])}
+  const far=lng<B[0][0]-farMg||lng>B[1][0]+farMg||lat<B[0][1]-farMg||lat>B[1][1]+farMg;
   if(far){if(!warned){warned=true;toast('אתה מחוץ לאזור הפרויקט')}return}
   if(follow)map.easeTo({center:me,zoom:first?Math.max(map.getZoom(),20):map.getZoom(),duration:first?800:400})}
 
