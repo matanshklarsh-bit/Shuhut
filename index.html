@@ -65,6 +65,10 @@ header h1 small{display:block;font-size:12px;font-weight:500;color:var(--mute)}
 #pick{grid-column:2;height:58px;padding:0 18px;border:0;border-radius:14px;background:var(--ink);color:#fff;font:700 17px Heebo;cursor:pointer;display:flex;align-items:center;gap:8px}
 #pick svg{width:22px;height:22px}
 #info{grid-column:1}
+#moveBtn{margin-top:6px;font:600 14px Heebo;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:6px 14px;min-height:36px;cursor:pointer}
+#card.moving #modes,#card.moving #lineBar,#card.moving #chips,#card.moving #selRow{display:none}
+#card.moving #moveBtn{border-color:var(--red);color:var(--red)}
+#card.moving #pick{background:var(--ok)!important}
 #modes{grid-column:1/3;display:flex;background:var(--bg);border-radius:12px;padding:3px;gap:2px;margin-bottom:4px}
 #modes button{flex:1;min-height:38px;border:0;background:none;border-radius:9px;font:700 15px Heebo;color:var(--mute);cursor:pointer}
 #modes button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.18)}
@@ -236,7 +240,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-o
       <div id="modes"><button data-m="mh">שוחה</button><button data-m="el">אלמנט</button><button data-m="line">קו</button><button data-m="flow">זרימה</button></div>
       <div id="selRow" hidden><button id="selBtn"></button></div>
       <div id="lineBar" hidden><div id="olines"></div><div class="lbb"><span id="lbT"></span><button id="lbUndo">בטל נקודה</button><button class="fin" id="lbFin">סיים קו</button></div></div>
-      <div id="info"><div id="kind">מיקום חופשי</div><div id="title">—</div><div id="coord"></div></div>
+      <div id="info"><div id="kind">מיקום חופשי</div><div id="title">—</div><div id="coord"></div><button id="moveBtn" hidden>✥ הזז</button></div>
       <button id="pick"><svg id="pickI" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span id="pickT">צלם</span></button>
       <div id="chips"></div>
     </div>
@@ -500,7 +504,7 @@ function initMap(){map=new maplibregl.Map({container:'map',style:{version:8,sour
     res()}));
   let rafU=0;map.on('move',()=>{if(!rafU)rafU=requestAnimationFrame(()=>{rafU=0;update()})});   // at most one refresh per frame while the map movesmap.on('resize',labels);
   map.on('dragstart',()=>{if(follow){follow=false;gpsBtn()}})}
-async function openProject(id){activeLine=null;flowFrom=null;const p=await get('projects',id);if(!p)return home();P=p;LS.set('last',p.id);
+async function openProject(id){activeLine=null;flowFrom=null;moving=null;const p=await get('projects',id);if(!p)return home();P=p;LS.set('last',p.id);
   PT=p.pts.map((x,i)=>({...x,id:i}));A=affine(p.ref);$('#pname').firstChild.textContent=p.name;screen('mapv');
   if(!map)initMap();map.resize();await mapReady;
   map.getSource('ln').setData(fc(p.lines.map(l=>({type:'Feature',properties:{l:l.l},geometry:{type:'LineString',coordinates:l.c}}))));
@@ -573,7 +577,7 @@ function labels(){if(!map||!P)return;const r=cv.getBoundingClientRect(),dpr=devi
   if(vis.lbl&&z>=18.5)for(const p of PT){if(p.k==='lbl')put(p.ll,p.name,12,500,'#6b7177',0)}
   if(vis.h&&z>=20.5)for(const p of PT){if(p.k==='h')put(p.ll,p.h,11,400,'#6b7177',-9)}}
 // crosshair targets depend on the mode
-let cur=null,cand=[];
+let cur=null,cand=[],moving=null;   // moving: {r, i (line vertex) or null, ll0, name} while relocating a documented object
 function targets(){const t=[],R=[...recs.values()];
   const mhPts=()=>{for(const p of PT)if((p.k==='mh'&&vis.mh)||(p.k==='mhtxt'&&vis.mhtxt))t.push({t:'pt',p,ll:p.ll})};
   const spPts=onlyDone=>{if(vis.sp)for(const p of PT)if((p.k==='sign'||p.k==='pole')&&(!onlyDone||recByPt.has(p.id)))t.push({t:'pt',p,ll:p.ll})};
@@ -588,13 +592,19 @@ const tXY=o=>o.t==='rec'?o.r.xy:o.t==='lv'?o.r.pts[o.i].xy:[o.p.x,o.p.y];
 const isMh=o=>!!o&&((o.t==='pt'&&(o.p.k==='mh'||o.p.k==='mhtxt'))||(o.t==='rec'&&(typ(o.r)==='mh'||(typ(o.r)==='el'&&o.r.el==='קולטן')))||(o.t==='lv'&&(o.r.infra==='sewer'||o.r.infra==='drain')));
 function recOf(o){return o?(o.t==='rec'||o.t==='lv'?o.r:recByPt.get(o.p.id)):null}
 function update(){if(!P)return;const c=map.project(map.getCenter()),m=mpp();
-  cand=targets().map(o=>{const s=map.project(o.ll),d=Math.hypot(s.x-c.x,s.y-c.y);return{...o,d,m:d*m}}).filter(o=>vis.snap&&o.d<=SNAP_PX&&o.m<=SNAP_M).sort((a,b)=>a.d-b.d);
+  cand=targets().map(o=>{const s=map.project(o.ll),d=Math.hypot(s.x-c.x,s.y-c.y);return{...o,d,m:d*m}}).filter(o=>!moving&&vis.snap&&o.d<=SNAP_PX&&o.m<=SNAP_M).sort((a,b)=>a.d-b.d);
   if(cur&&!cand.some(o=>o.ll===cur.ll&&o.t===cur.t))cur=null;if(!cur&&cand.length)cur=cand[0];
   const band=map.getSource('band'),c0=map.getCenter(),here=cur?cur.ll:[c0.lng,c0.lat];
-  if(band){const fr=[];if(mode==='line')for(const L of openLines())if(L.pts.length)fr.push({ll:L.pts[L.pts.length-1].ll,c:colOf(L),a:L===activeLine?1:0});if(mode==='flow'&&flowFrom)fr.push({ll:flowFrom.ll,c:IC[sel.flow.inf][2],a:1});
+  if(band&&moving)band.setData(fc([{type:'Feature',properties:{c:'#d1261b',a:1},geometry:{type:'LineString',coordinates:[moving.ll0,[c0.lng,c0.lat]]}}]));
+  else if(band){const fr=[];if(mode==='line')for(const L of openLines())if(L.pts.length)fr.push({ll:L.pts[L.pts.length-1].ll,c:colOf(L),a:L===activeLine?1:0});if(mode==='flow'&&flowFrom)fr.push({ll:flowFrom.ll,c:IC[sel.flow.inf][2],a:1});
     band.setData(fc(fr.map(f=>({type:'Feature',properties:{c:f.c,a:f.a},geometry:{type:'LineString',coordinates:[f.ll,here]}}))))}
   show();labels()}
 function show(){const rc=recOf(cur);let kind,title,col='#16191c';
+  $('#card').classList.toggle('moving',!!moving);
+  if(moving){const c0=map.getCenter(),xy=A(c0),d=Math.hypot(xy[0]-moving.xy0[0],xy[1]-moving.xy0[1]);
+    $('#kind').textContent=`הזזה · ${moving.name} · ${d.toFixed(2)} מ׳`;$('#kind').style.color='#d1261b';$('#title').textContent='גרור את המפה למיקום החדש';$('#coord').textContent=fmt(xy);
+    $('#cross').classList.remove('snap');$('#cg').setAttribute('stroke','#d1261b');$('#pickT').textContent='שמור מיקום';$('#pickI').style.display='none';$('#moveBtn').hidden=false;$('#moveBtn').textContent='ביטול';return}
+  $('#moveBtn').hidden=!(cur&&(cur.t==='rec'||cur.t==='lv'));$('#moveBtn').textContent='✥ הזז';
   if(!cur){kind=vis.snap?'מיקום חופשי':'מיקום חופשי · הצמדה כבויה';title=mode==='flow'?'כוון לשוחה, קולטן או נקודה בקו':'אין שוחה מדודה כאן'}
   else if(cur.t==='lv'){const d=cur.r.pts[cur.i].d;kind='נקודה בקו'+(d!=null?' · עומק '+Number(d).toFixed(2):'');title=tName(cur);col=colOf(cur.r)}
   else if(cur.t==='rec'){kind='תיעוד קיים';title=cur.r.name;col=colOf(cur.r)}
@@ -613,7 +623,19 @@ function show(){const rc=recOf(cur);let kind,title,col='#16191c';
   setHtml('#chips',cand.length>1?cand.slice(0,5).map((o,i)=>`<button data-i="${i}" class="${cur&&o.ll===cur.ll&&o.t===cur.t?'cur':''}">${esc(tName(o))} · ${o.m.toFixed(1)} מ׳</button>`).join(''):'')}
 const htmlCache={};function setHtml(sel,h){if(htmlCache[sel]===h)return false;htmlCache[sel]=h;$(sel).innerHTML=h;return true}
 $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(b){cur=cand[+b.dataset.i];show()}});
-$('#pick').addEventListener('click',async()=>{const rc=recOf(cur);
+$('#moveBtn').addEventListener('click',()=>{
+  if(moving){const m=moving;moving=null;map.jumpTo({center:m.ll0});update();return toast('ההזזה בוטלה')}
+  if(!cur||!(cur.t==='rec'||cur.t==='lv'))return;const lv=cur.t==='lv',q=lv?cur.r.pts[cur.i]:cur.r;
+  moving={r:cur.r,i:lv?cur.i:null,ll0:q.ll,xy0:q.xy,name:tName(cur)};cur=null;map.jumpTo({center:moving.ll0});update()});
+async function doMove(){const m=moving;moving=null;const c0=map.getCenter(),ll=[+c0.lng.toFixed(8),+c0.lat.toFixed(8)],xy=A(c0).map(v=>+v.toFixed(3)),r=m.r,ch=new Set();
+  const same=(ref)=>ref&&(m.i==null?ref.rec===r.id:(ref.line===r.id&&ref.i===m.i));
+  if(m.i==null){r.ll=ll;r.xy=xy}else{const v=r.pts[m.i];v.ll=ll;v.xy=xy;if(v.ref&&!v.ref.line){delete v.ref;v.on=null}}   // a vertex dragged off the manhole it sat on is no longer on it
+  ch.add(r);
+  for(const o of recs.values()){const t=typ(o);   // whatever was attached to the moved point follows it
+    if(t==='line')o.pts.forEach(v=>{if(same(v.ref)){v.ll=ll;v.xy=xy;ch.add(o)}});
+    if(t==='flow')for(const e of[o.a,o.b])if(same(e.ref)){e.ll=ll;e.xy=xy;ch.add(o)}}
+  for(const o of ch)await saveRec(o);cur=null;update();toast('המיקום עודכן'+(ch.size>1?` (+${ch.size-1} מחוברים)`:''))}
+$('#pick').addEventListener('click',async()=>{if(moving)return doMove();const rc=recOf(cur);
   if(mode==='mh'){requestCompass();if(rc)return openRec(rc);
     const ll=cur?cur.ll:[map.getCenter().lng,map.getCenter().lat],seq=nextSeq();
     const r={id:uid(),pid:P.id,type:'mh',seq,pt:cur&&cur.t==='pt'?cur.p.id:null,name:cur?tName(cur):'נקודה חופשית '+seq,xy:cur?tXY(cur):A({lng:ll[0],lat:ll[1]}),ll,infra:null,n:0,created:Date.now()};
@@ -648,7 +670,7 @@ async function finishLine(){const r=activeLine;if(!r)return;
   if(!r.pts.length){if(recs.has(r.id)){await del('records',r.id);recs.delete(r.id);markDirty(r.pid)}}
   else if(r.pts.length===1){r.open=false;if(!/^נקודת /.test(r.name))r.name='נקודת '+r.name;await saveRec(r);toast('נשמרה נקודה בודדת: '+r.name)}else{if(/^נקודת /.test(r.name))r.name=r.name.replace(/^נקודת /,'');r.open=false;await saveRec(r);toast(`נשמר: ${r.name} · ${r.pts.length} נקודות`)}
   activeLine=null;const ol=openLines();setActive(ol[ol.length-1]);drawRecs()}
-async function setMode(m){dropEmpty();flowFrom=null;mode=m;LS.set('mode',m);modeUi();cur=null;if(map)update()}
+async function setMode(m){dropEmpty();flowFrom=null;moving=null;mode=m;LS.set('mode',m);modeUi();cur=null;if(map)update()}
 function modeUi(){document.querySelectorAll('#modes button').forEach(x=>x.classList.toggle('on',x.dataset.m===mode));selUi()}
 $('#modes').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setMode(b.dataset.m)});
 $('#lbFin').onclick=async()=>{if(mode==='line')await finishLine();else flowFrom=null;update()};
