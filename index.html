@@ -18,6 +18,7 @@
 :root{--bg:#f6f5f1;--panel:#fff;--ink:#16191c;--mute:#686e74;--line:#dcdad3;--red:#d1261b;--org:#ec7a00;--blue:#1d6fd6;--ok:#14a44d;--shadow:0 6px 24px rgba(0,0,0,.16);--st:env(safe-area-inset-top);--sb:env(safe-area-inset-bottom)}
 *{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}
+button,label,input,select,.row,.sheet,#panel,#kpKeys{touch-action:manipulation}   /* no double-tap-zoom wait: fast repeated taps (keypad) all register */
 body{background:var(--bg);color:var(--ink);font:16px/1.45 Heebo,system-ui,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none}
 button{font-family:inherit;color:inherit}
 .screen{position:fixed;inset:0;display:none;flex-direction:column}
@@ -497,7 +498,7 @@ function initMap(){map=new maplibregl.Map({container:'map',style:{version:8,sour
     map.addLayer({id:'acc',type:'fill',source:'acc',paint:{'fill-color':'rgba(29,111,214,.12)','fill-outline-color':'rgba(29,111,214,.5)'}});
     map.addLayer({id:'me',type:'circle',source:'me',paint:{'circle-radius':8,'circle-color':'#1d6fd6','circle-stroke-color':'#fff','circle-stroke-width':3}});
     res()}));
-  map.on('move',update);map.on('resize',labels);
+  let rafU=0;map.on('move',()=>{if(!rafU)rafU=requestAnimationFrame(()=>{rafU=0;update()})});   // at most one refresh per frame while the map movesmap.on('resize',labels);
   map.on('dragstart',()=>{if(follow){follow=false;gpsBtn()}})}
 async function openProject(id){activeLine=null;flowFrom=null;const p=await get('projects',id);if(!p)return home();P=p;LS.set('last',p.id);
   PT=p.pts.map((x,i)=>({...x,id:i}));A=affine(p.ref);$('#pname').firstChild.textContent=p.name;screen('mapv');
@@ -605,11 +606,12 @@ function show(){const rc=recOf(cur);let kind,title,col='#16191c';
   $('#pickT').textContent=act;$('#pickI').style.display=mode==='mh'?'':'none';$('#pick').style.background=mode==='mh'&&rc?col:'';
   const lb=$('#lineBar');
   if(mode==='line'){lb.hidden=false;$('#olines').hidden=false;const ol=openLines();
-    $('#olines').innerHTML=ol.map(L=>{const on=L===activeLine,[, ,c,tx]=IC[L.infra];return`<button data-id="${L.id}" class="${on?'on':''}" style="${on?`background:${c};border-color:${c};color:${tx||'#fff'}`:`border-color:${c}`}"><i style="background:${on?(tx||'#fff'):c}"></i>${esc(L.name.replace(/^קו /,''))} · ${L.pts.length}</button>`}).join('')+'<button class="add" id="olAdd">+ קו חדש</button>';
-    $('#olines').querySelector('.on')?.scrollIntoView({inline:'nearest',block:'nearest'});
+    if(setHtml('#olines',ol.map(L=>{const on=L===activeLine,[, ,c,tx]=IC[L.infra];return`<button data-id="${L.id}" class="${on?'on':''}" style="${on?`background:${c};border-color:${c};color:${tx||'#fff'}`:`border-color:${c}`}"><i style="background:${on?(tx||'#fff'):c}"></i>${esc(L.name.replace(/^קו /,''))} · ${L.pts.length}</button>`}).join('')+'<button class="add" id="olAdd">+ קו חדש</button>'))
+      $('#olines').querySelector('.on')?.scrollIntoView({inline:'nearest',block:'nearest'});
     $('#lbT').textContent=activeLine?`פעיל: ${activeLine.name}`:'אין קו פעיל';$('#lbUndo').hidden=!activeLine||!activeLine.pts.length;$('#lbFin').hidden=!activeLine;$('#lbFin').textContent='סיים קו'}
   else if(mode==='flow'&&flowFrom){lb.hidden=false;$('#olines').hidden=true;$('#lbT').textContent='מ: '+flowFrom.name;$('#lbUndo').hidden=true;$('#lbFin').hidden=false;$('#lbFin').textContent='סיים'}else lb.hidden=true;
-  $('#chips').innerHTML=cand.length>1?cand.slice(0,5).map((o,i)=>`<button data-i="${i}" class="${cur&&o.ll===cur.ll&&o.t===cur.t?'cur':''}">${esc(tName(o))} · ${o.m.toFixed(1)} מ׳</button>`).join(''):''}
+  setHtml('#chips',cand.length>1?cand.slice(0,5).map((o,i)=>`<button data-i="${i}" class="${cur&&o.ll===cur.ll&&o.t===cur.t?'cur':''}">${esc(tName(o))} · ${o.m.toFixed(1)} מ׳</button>`).join(''):'')}
+const htmlCache={};function setHtml(sel,h){if(htmlCache[sel]===h)return false;htmlCache[sel]=h;$(sel).innerHTML=h;return true}
 $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(b){cur=cand[+b.dataset.i];show()}});
 $('#pick').addEventListener('click',async()=>{const rc=recOf(cur);
   if(mode==='mh'){requestCompass();if(rc)return openRec(rc);
