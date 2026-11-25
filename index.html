@@ -605,7 +605,7 @@ function show(){const rc=recOf(cur);let kind,title,col='#16191c';
     $('#kind').textContent=`הזזה · ${moving.name} · ${d.toFixed(2)} מ׳`;$('#kind').style.color='#d1261b';$('#title').textContent='גרור את המפה למיקום החדש';$('#coord').textContent=fmt(xy);
     $('#cross').classList.remove('snap');$('#cg').setAttribute('stroke','#d1261b');$('#pickT').textContent='שמור מיקום';$('#pickI').style.display='none';$('#moveBtn').hidden=false;$('#moveBtn').textContent='ביטול';return}
   $('#moveBtn').hidden=!(cur&&(cur.t==='rec'||cur.t==='lv'));$('#moveBtn').textContent='✥ הזז';
-  if(!cur){kind=vis.snap?'מיקום חופשי':'מיקום חופשי · הצמדה כבויה';title=mode==='flow'?'כוון לשוחה, קולטן או נקודה בקו':'אין שוחה מדודה כאן'}
+  if(!cur){kind=vis.snap?'מיקום חופשי':'מיקום חופשי · הצמדה כבויה';title=mode==='flow'?'נקודה חופשית':'אין שוחה מדודה כאן'}
   else if(cur.t==='lv'){const d=cur.r.pts[cur.i].d;kind='נקודה בקו'+(d!=null?' · עומק '+Number(d).toFixed(2):'');title=tName(cur);col=colOf(cur.r)}
   else if(cur.t==='rec'){kind='תיעוד קיים';title=cur.r.name;col=colOf(cur.r)}
   else{const p=cur.p;kind=p.k==='mh'?'שוחה מדודה':p.k==='mhtxt'?'שוחה · כיתוב בלבד':'נקודה מדודה';title=tName(cur)+(p.h&&p.k==='mh'?' · מכסה '+p.h:'');col=p.k==='mh'?'#d1261b':p.k==='mhtxt'?'#ec7a00':'#5d6b78'}
@@ -653,10 +653,10 @@ $('#pick').addEventListener('click',async()=>{if(moving)return doMove();const rc
     if(cur&&cur.t==='lv'&&cur.r!==L&&cur.r.pts.length===1&&!cur.r.open)return absorb(L,cur.r);
     const v={xy,ll,d:null,on:cur?tName(cur):null};if(cur&&cur.t==='lv'&&cur.r!==L)v.ref={line:cur.r.id,i:cur.i};else if(cur&&cur.t==='rec')v.ref={rec:cur.r.id};else if(cur&&cur.t==='pt')v.ref={pt:cur.p.id};
     L.pts.push(v);if(L.pts.length===1){L.xy=xy;L.ll=ll}L.open=true;await saveRec(L);if(L.el!==AIR)askDepth(L,L.pts.length-1);return}
-  if(!isMh(cur))return toast('כוון לשוחה, לקולטן או לנקודה בקו ביוב/ניקוז');
-  const end={name:tName(cur),xy,ll,ref:cur.t==='pt'?{pt:cur.p.id}:cur.t==='lv'?{line:cur.r.id,i:cur.i}:{rec:cur.r.id}};
+  // a flow end on a manhole, collector or sewer/drain line point is tied to it; anywhere else it is a free point
+  const end=isMh(cur)?{name:tName(cur),xy,ll,ref:cur.t==='pt'?{pt:cur.p.id}:cur.t==='lv'?{line:cur.r.id,i:cur.i}:{rec:cur.r.id}}:{name:'נקודה',xy,ll,ref:null};
   if(!flowFrom){flowFrom=end;return update()}
-  if(flowFrom.ll[0]===end.ll[0]&&flowFrom.ll[1]===end.ll[1])return toast('בחר שוחה אחרת');
+  if(flowFrom.ll[0]===end.ll[0]&&flowFrom.ll[1]===end.ll[1])return toast('הזז את הכוונת לנקודה הבאה');
   const k=sel.flow.inf,r={id:uid(),pid:P.id,type:'flow',infra:k,seq:nextSeq(),name:`זרימת ${IC[k][1]}: ${flowFrom.name} אל ${end.name}`,a:flowFrom,b:end,xy:flowFrom.xy,ll:flowFrom.ll,n:0,created:Date.now()};
   await saveRec(r);toast('חובר: '+flowFrom.name+' ← '+end.name);flowFrom=end;update()});
 // modes and selection
